@@ -65,7 +65,8 @@ async def gerar_token(body:AutenticacaoModel) -> dict:
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     finally:
-        return res
+        pass
+    return res
 
 @router.post("/vendas/consulta-parcelas", status_code=status.HTTP_200_OK)
 async def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) -> dict:
@@ -82,7 +83,8 @@ async def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     finally:
-        return res
+        pass
+    return res
 
 @router.post("/vendas/consulta-pgto-oc", status_code=status.HTTP_200_OK)
 async def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_token)) -> dict:
@@ -99,7 +101,8 @@ async def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_tok
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     finally:
-        return res
+        pass
+    return res
 
 @router.post("/vendas/consulta-pgto-id", status_code=status.HTTP_200_OK)
 async def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token)) -> dict:
@@ -115,5 +118,6 @@ async def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     finally:
-        return res
+        pass
+    return res
     
