@@ -4,3 +4,4 @@ __pycache__
 .env
 db_objects
 *.log
+venv
