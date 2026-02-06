@@ -7,6 +7,8 @@ from pydantic import BaseModel, model_validator
 from rede import *
 load_dotenv()
 
+COMPANY_NUMBER_LIST = [int(x) for x in os.getenv("COMPANY_NUMBER_LIST", "").split(",") if x.isdigit()]
+
 class AutenticacaoModel(BaseModel):
     ambiente: Literal['trn', 'prd']
     pacote: Literal['pgto', 'vendas']
@@ -17,6 +19,12 @@ class LinkPagamentoModel(BaseModel):
     paymentLinkId:str
     companyNumber:str
     body:dict
+
+    @model_validator(mode="after")
+    def validar_companynumber(cls, model):
+        if model.companyNumber not in COMPANY_NUMBER_LIST:
+            raise ValueError("companyNumber inválido")
+        return model
 
 class VendasModel(BaseModel):
     ambiente:Literal['trn', 'prd']
@@ -29,6 +37,18 @@ class VendasModel(BaseModel):
     def validar_periodo(cls, model):
         if model.startDate > model.endDate:
             raise ValueError("startDate não pode ser maior que endDate")
+        return model        
+    
+    @model_validator(mode="after")
+    def validar_nsu(cls, model):
+        if model.nsu is not None and len(str(model.nsu)) < 9:
+            raise ValueError("nsu inválido")
+        return model        
+    
+    @model_validator(mode="after")
+    def validar_companynumber(cls, model):
+        if model.companyNumber not in COMPANY_NUMBER_LIST:
+            raise ValueError("companyNumber inválido")
         return model        
 
 class VendasPgtoId(BaseModel):
