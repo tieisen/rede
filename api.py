@@ -32,7 +32,6 @@ class VendasModel(BaseModel):
 
 class VendasPgtoId(BaseModel):
     ambiente:Literal['trn', 'prd']
-    token:str
     companyNumber:int
     paymentId:str
 
