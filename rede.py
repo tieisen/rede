@@ -230,14 +230,17 @@ class Vendas():
                 raise ValueError(f"Ambiente inválido:\n>>{ambiente}")           
         return url
 
-    def consultar_vendas_parceladas(self,ambiente:Literal['trn', 'prd'],token:str,companyNumber:int,startDate:date,endDate:date) -> dict:
+    def consultar_vendas_parceladas(self,ambiente:Literal['trn', 'prd'],token:str,companyNumber:int,startDate:date,endDate:date,nsu:int=None) -> dict:
 
         data:dict={}
         url:str=''
         res:requests.Response=None
         
         url=self.validar_ambiente(ambiente=ambiente)
-        url+=f'/sales/installments?parentCompanyNumber={companyNumber}&subsidiaries={companyNumber}&startDate={startDate.strftime('%Y-%m-%d')}&endDate={endDate.strftime('%Y-%m-%d')}'
+        if nsu:
+            url+=f'/v2/payments/installments/{companyNumber}?saleDate={startDate.strftime('%Y-%m-%d')}&nsu={nsu}'
+        else:
+            url+=f'/v1/sales/installments?parentCompanyNumber={companyNumber}&subsidiaries={companyNumber}&startDate={startDate.strftime('%Y-%m-%d')}&endDate={endDate.strftime('%Y-%m-%d')}'
 
         header:dict={
             "Authorization": f"Bearer {token}",
@@ -266,7 +269,7 @@ class Vendas():
         res:requests.Response=None    
 
         url=self.validar_ambiente(ambiente=ambiente)
-        url+=f'/payments/credit-orders?parentCompanyNumber={companyNumber}&subsidiaries={companyNumber}&startDate={startDate.strftime('%Y-%m-%d')}&endDate={endDate.strftime('%Y-%m-%d')}'
+        url+=f'/v1/payments/credit-orders?parentCompanyNumber={companyNumber}&subsidiaries={companyNumber}&startDate={startDate.strftime('%Y-%m-%d')}&endDate={endDate.strftime('%Y-%m-%d')}'
 
         header:dict={
             "Authorization": f"Bearer {token}",
@@ -295,7 +298,7 @@ class Vendas():
         res:requests.Response=None
 
         url=self.validar_ambiente(ambiente=ambiente)
-        url+=f'/payments/{companyNumber}/{paymentId}'
+        url+=f'/v1/payments/{companyNumber}/{paymentId}'
 
         header:dict={
             "Authorization": f"Bearer {token}",
