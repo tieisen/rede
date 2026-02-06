@@ -21,6 +21,7 @@ class LinkPagamentoModel(BaseModel):
 class VendasModel(BaseModel):
     ambiente:Literal['trn', 'prd']
     companyNumber:int
+    nsu:int=None
     startDate:date
     endDate:date
     
@@ -76,6 +77,7 @@ async def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) 
             ambiente=body.ambiente,
             token=token,
             companyNumber=body.companyNumber,
+            nsu=body.nsu,
             startDate=body.startDate,
             endDate=body.endDate
         )
