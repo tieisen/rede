@@ -235,7 +235,7 @@ class Vendas():
         data:dict={}
         url:str=''
         res:requests.Response=None
-        
+
         url=self.validar_ambiente(ambiente=ambiente)
         if nsu:
             url+=f"/v2/payments/installments/{companyNumber}?saleDate={startDate.strftime('%Y-%m-%d')}&nsu={nsu}"
@@ -255,11 +255,15 @@ class Vendas():
         except Exception as e:
             raise ConnectionError(f"Erro na consulta de vendas parceladas: {e}")
         finally:
-            if res.ok:
-                data = res.json()
-            else:
-                raise ConnectionError(f"Erro {res.status_code} na consulta de vendas parceladas: {res.text}")
-        
+            match res.status_code:
+                case 200:
+                    data = res.json()
+                case 204:
+                    data = {
+                        "message": f"A consulta não retornou dados. NSU: {nsu}. Data: {startDate.strftime('%d/%m/%Y')}"
+                        }
+                case _:
+                    raise ConnectionError(f"Erro {res.status_code} na consulta de vendas parceladas: {res.text}")
         return data
     
     def consultar_pagamentos_oc(self,ambiente:Literal['trn', 'prd'],token:str,companyNumber:int,startDate:date,endDate:date) -> dict:
@@ -284,8 +288,12 @@ class Vendas():
         except Exception as e:
             raise ConnectionError(f"Erro na consulta de pagamentos: {e}")
         finally:
-            if res.ok:
+            if res.ok and res.text:
                 data = res.json()
+            elif res.ok and not res.text:
+                data = {
+                    "message": f"A consulta não retornou dados. Período: {startDate.strftime('%d/%m/%Y')} - {endDate.strftime('%d/%m/%Y')}"
+                }
             else:
                 raise ConnectionError(f"Erro {res.status_code} na consulta de pagamentos: {res.text}")
         
@@ -313,8 +321,12 @@ class Vendas():
         except Exception as e:
             raise ConnectionError(f"Erro na consulta de pagamentos por ID: {e}")
         finally:
-            if res.ok:
+            if res.ok and res.text:
                 data = res.json()
+            elif res.ok and not res.text:
+                data = {
+                    "message": f"A consulta não retornou dados. ID Pagamento: {paymentId}"
+                }
             else:
                 raise ConnectionError(f"Erro {res.status_code} na consulta de pagamentos por ID: {res.text}")
         
