@@ -1,4 +1,4 @@
-import os, base64, requests
+import os, base64, requests, json
 from typing import Literal
 from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
@@ -8,10 +8,15 @@ load_dotenv()
 
 class Autenticacao():
 
-    def __init__(self,ambiente: Literal['trn', 'prd']='',pacote: Literal['pgto', 'vendas']='',auth:str=''):
+    def __init__(self,ambiente: Literal['trn', 'prd']='prd',pacote: Literal['pgto', 'vendas']='vendas',auth:str=''):
         self.ambiente = ambiente
         self.pacote = pacote
-        self.auth = auth
+        self.auth = os.getenv('BASIC_CLIENT_SP',auth)
+        self.caminho_arquivo_token = os.getenv("PATH_TOKEN_REDE", "")
+
+        if not all([self.caminho_arquivo_token, self.auth]):
+            logger.critical("Variáveis de ambiente não configuradas corretamente para REDE.")
+            raise Exception("Variáveis de ambiente não configuradas corretamente para REDE.")
 
     def converter_base64(self,texto:str) -> str:
         base64_bytes = b""
@@ -86,9 +91,6 @@ class Autenticacao():
         self.dados_ambiente = self.validar_ambiente()
         res:requests.Response=None
 
-        print(f"Gerando token para o ambiente {self.ambiente} e pacote {self.pacote}...")
-        print(f"URL: {self.dados_ambiente.get('url')}")
-
         try:
             assert isinstance(self.dados_ambiente,dict)
             if not self.dados_ambiente:
@@ -121,7 +123,59 @@ class Autenticacao():
             else:
                 raise ConnectionError(f"Erro {res.status_code}: {res.text}")
         return dados
-    
+
+    def salvar_token_arquivo(self, token: dict) -> bool:
+        """
+        Salva o token em um arquivo de texto.
+            :param caminho_arquivo: caminho do arquivo de texto onde o token será salvo.
+            :param token: token a ser salvo no arquivo.
+        """
+
+        status:bool = False
+        try:
+            with open(self.caminho_arquivo_token, 'w') as arquivo:
+                arquivo.write(json.dumps(token,ensure_ascii=False, indent=4))
+            status = True
+        except Exception as e:
+            logger.error(f"Erro ao salvar o token no arquivo: {e}")
+        finally:
+            pass
+        return status
+
+    def carregar_token_arquivo(self) -> dict:
+        """
+        Carrega o token de um arquivo de texto.
+            :param caminho_arquivo: caminho do arquivo de texto onde o token está salvo.
+            :return dict: token carregado do arquivo.
+        """
+        try:
+            if os.path.exists(self.caminho_arquivo_token):
+                with open(self.caminho_arquivo_token, 'r') as arquivo:
+                    token = json.loads(arquivo.read())
+                    return token
+            else:
+                logger.warning("Arquivo de token não encontrado.")
+                return {}
+        except Exception as e:
+            logger.error(f"Erro ao carregar o token do arquivo: {e}")
+            return {}
+
+    def autenticar(self) -> str:
+        """
+        Realiza o processo de autenticação, verificando se o token existente é válido ou se é necessário solicitar um novo token.
+            :return str: token de acesso válido para uso nas requisições à API.
+        """
+        token:dict = self.carregar_token_arquivo()
+        if not token or datetime.strptime(token.get('expire_time', '1970-01-01 00:00:00'), '%Y-%m-%d %H:%M:%S') <= datetime.now():
+            token = self.gerar_token()
+            if token:
+                self.salvar_token_arquivo(token)
+                return token.get('access_token', '')
+            else:
+                return ''
+        else:
+            return token.get('access_token', '')
+
 class LinkPagamento():
 
     def __init__(self):
@@ -230,7 +284,7 @@ class Vendas():
                 raise ValueError(f"Ambiente inválido:\n>>{ambiente}")           
         return url
 
-    def consultar_vendas_parceladas(self,ambiente:Literal['trn', 'prd'],token:str,companyNumber:int,startDate:date,endDate:date,nsu:int=None) -> dict:
+    def consultar_vendas_parceladas(self,token:str,companyNumber:int,startDate:date,endDate:date,nsu:int=None,ambiente:Literal['trn', 'prd']='prd') -> dict:
 
         data:dict={}
         url:str=''
@@ -266,7 +320,7 @@ class Vendas():
                     raise ConnectionError(f"Erro {res.status_code} na consulta de vendas parceladas: {res.text}")
         return data
     
-    def consultar_pagamentos_oc(self,ambiente:Literal['trn', 'prd'],token:str,companyNumber:int,startDate:date,endDate:date) -> dict:
+    def consultar_pagamentos_oc(self,token:str,companyNumber:int,startDate:date,endDate:date,ambiente:Literal['trn', 'prd']='prd') -> dict:
 
         data:dict={}
         url:str=''
@@ -299,7 +353,7 @@ class Vendas():
         
         return data
 
-    def consultar_pagamentos_id(self,ambiente:Literal['trn', 'prd'],token:str,companyNumber:int,paymentId:str) -> dict:
+    def consultar_pagamentos_id(self,token:str,companyNumber:int,paymentId:str,ambiente:Literal['trn', 'prd']='prd') -> dict:
 
         data:dict={}
         url:str=''
