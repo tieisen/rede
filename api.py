@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, model_validator
 from rede import *
+from rotina import Rotina
 load_dotenv()
 
 COMPANY_NUMBER_LIST = [int(x) for x in os.getenv("COMPANY_NUMBER_LIST", "").split(",") if x.isdigit()]
@@ -49,6 +50,37 @@ class VendasModel(BaseModel):
     def validar_companynumber(cls, model):
         if model.companyNumber not in COMPANY_NUMBER_LIST:
             raise ValueError("companyNumber inválido")
+        return model        
+
+class RotinaModel(BaseModel):
+    companyNumber:int
+    startDate:date
+    endDate:date
+    nufin:list[dict]
+    nsu:int=None
+    
+    @model_validator(mode="after")
+    def validar_periodo(cls, model):
+        if model.startDate > model.endDate:
+            raise ValueError("startDate não pode ser maior que endDate")
+        return model        
+    
+    @model_validator(mode="after")
+    def validar_nsu(cls, model):
+        if model.nsu is not None and len(str(model.nsu)) < 9:
+            raise ValueError("nsu inválido")
+        return model        
+    
+    @model_validator(mode="after")
+    def validar_companynumber(cls, model):
+        if model.companyNumber not in COMPANY_NUMBER_LIST:
+            raise ValueError("companyNumber inválido")
+        return model        
+    
+    @model_validator(mode="after")
+    def validar_nufin(cls, model):
+        if ("NUFIN" not in model.nufin[0]) or ("DESDOBRAMENTO" not in model.nufin[0]):
+            raise ValueError("dicionário nufin inválido")
         return model        
 
 class VendasPgtoId(BaseModel):
@@ -136,6 +168,25 @@ async def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar
             companyNumber=body.companyNumber,
             paymentId=body.paymentId
         )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    finally:
+        pass
+    return res
+
+@router.post("/rotina/atualiza-financeiro", status_code=status.HTTP_200_OK)
+async def atualiza_financeiro(body:RotinaModel) -> dict:
+    res:dict={}
+    rotina = Rotina()
+    try:        
+        res = rotina.atualizar_dados_financeiro(
+            companyNumber=body.companyNumber,
+            dataVendas=body.startDate,
+            nsu=body.nsu,
+            dados_financeiro=body.nufin
+        )
+        if not res.get('sucesso'):
+            raise Exception(res.get('mensagem', 'Falha ao atualizar dados financeiro.'))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     finally:
