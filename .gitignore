@@ -5,3 +5,4 @@ __pycache__
 db_objects
 *.log
 venv
+*.json
