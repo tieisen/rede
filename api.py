@@ -56,7 +56,7 @@ class RotinaModel(BaseModel):
     companyNumber:int
     startDate:date
     endDate:date
-    nufin:list[dict]
+    financeiro:list[dict]
     nsu:int=None
     
     @model_validator(mode="after")
@@ -78,9 +78,9 @@ class RotinaModel(BaseModel):
         return model        
     
     @model_validator(mode="after")
-    def validar_nufin(cls, model):
-        if ("NUFIN" not in model.nufin[0]) or ("DESDOBRAMENTO" not in model.nufin[0]):
-            raise ValueError("dicionário nufin inválido")
+    def validar_financeiro(cls, model):
+        if ("nufin" not in model.financeiro[0]) or ("desdobramento" not in model.financeiro[0]):
+            raise ValueError("dicionário financeiro inválido")
         return model        
 
 class VendasPgtoId(BaseModel):
@@ -183,7 +183,7 @@ async def atualiza_financeiro(body:RotinaModel) -> dict:
             companyNumber=body.companyNumber,
             dataVendas=body.startDate,
             nsu=body.nsu,
-            dados_financeiro=body.nufin
+            dados_financeiro=body.financeiro
         )
         if not res.get('sucesso'):
             raise Exception(res.get('mensagem', 'Falha ao atualizar dados financeiro.'))
