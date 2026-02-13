@@ -22,7 +22,7 @@ class Autenticacao():
         
         def calcular_expiracao(segundos: int) -> str:
             try:
-                expiracao = datetime.now() + timedelta(seconds=segundos)
+                expiracao = datetime.now() + timedelta(seconds=(segundos-60))
                 return expiracao.strftime('%Y-%m-%d %H:%M:%S')
             except Exception as e:
                 logger.error(f"Erro ao calcular expiração do token: {e}")
@@ -320,7 +320,7 @@ class Financeiro():
             return [
                 {
                     "pk":{
-                            "NUFIN": dados_financeiro[i].get("NUFIN")
+                            "NUFIN": dados_financeiro[i].get("nufin")
                         },
                     "values": {
                         "0": item['amountInfo'].get("amount"),
