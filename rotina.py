@@ -39,7 +39,7 @@ class Rotina():
             if 'message' in dados_rede:
                 raise Exception(dados_rede.get('message'))
             
-            payload_fin_snk = snk_fin.formatar_payload(dados_rede=dados_rede,dados_financeiro=dados_financeiro)
+            payload_fin_snk = snk_fin.formatar_payload(companyNumber=companyNumber, dados_rede=dados_rede,dados_financeiro=dados_financeiro)
             if not payload_fin_snk:
                 raise Exception("Falha ao formatar payload financeiro.")
 
