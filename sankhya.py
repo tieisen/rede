@@ -289,7 +289,8 @@ class Financeiro():
                     "AD_REDE_PAYMENTDATE",
                     "AD_REDE_PAYMENTID",
                     "AD_REDE_PROCESSADO",
-                    "AD_REDE_TID"
+                    "AD_REDE_TID",
+                    "AD_COMPANYNUMBER"
                 ],
                 "records": payload
             }
@@ -314,7 +315,7 @@ class Financeiro():
 
         return sucesso
 
-    def formatar_payload(self,dados_rede:dict,dados_financeiro:dict) -> list[dict]:
+    def formatar_payload(self,companyNumber:int,dados_rede:dict,dados_financeiro:dict) -> list[dict]:
 
         try:
             return [
@@ -328,7 +329,8 @@ class Financeiro():
                         "2": item.get("installmentNumber"),
                         "3": item.get("mdrAmount"),
                         "4": item.get("mdrFee"),
-                        "5": item['amountInfo'].get("netAmount")
+                        "5": item['amountInfo'].get("netAmount"),
+                        "10": companyNumber
                     }
                 }
                 for i, item in enumerate(dados_rede.get("content",{}).get("installments",[]))
