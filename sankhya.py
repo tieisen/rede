@@ -23,7 +23,7 @@ class Autenticacao():
         def calcular_expiracao(segundos: int) -> str:
             try:
                 expiracao = datetime.now() + timedelta(seconds=(segundos-60))
-                return expiracao.strftime('%Y-%m-%d %H:%M:%S')
+                return expiracao.strftime('%Y-%m-%d %H:%M')
             except Exception as e:
                 logger.error(f"Erro ao calcular expiração do token: {e}")
                 return ""
@@ -84,7 +84,7 @@ class Autenticacao():
     def autenticar(self) -> str:
 
         token:dict = self.carregar_token_arquivo()
-        if not token or datetime.strptime(token.get('expiration_datetime', '1970-01-01 00:00:00'), '%Y-%m-%d %H:%M:%S') <= datetime.now():
+        if not token or datetime.strptime(token.get('expiration_datetime', '1970-01-01 00:00'), '%Y-%m-%d %H:%M') <= datetime.now():
             token = self.solicitar_token()
             if token:
                 self.salvar_token_arquivo(token)
@@ -143,7 +143,8 @@ class Financeiro():
             except Exception as e:
                 logger.error("Erro ao formatar dados da resposta. %s",e)
             finally:
-                return [res_formatted]
+                pass
+            return [res_formatted]
         else:
         # Extrai retorno de várias linhas (lista de dicionarios)
             new_res = []
@@ -160,7 +161,8 @@ class Financeiro():
                 except Exception as e:
                     logger.error("Erro ao formatar dados da resposta. %s",e)
                 finally:
-                    return new_res
+                    pass
+                return new_res
 
             # Se columns for um dicionario, extrai no formato chave:[valores]
             if isinstance(columns, dict):
@@ -172,7 +174,8 @@ class Financeiro():
                 except Exception as e:
                     logger.error("Erro ao formatar dados da resposta. %s",e)
                 finally:
-                    return new_res
+                    pass
+                return new_res
 
     def buscar(self,token:str,nufin:int=None,nunota:int=None,numnota:int=None) -> dict:
 
