@@ -300,6 +300,7 @@ class Financeiro():
             res = requests.post(
                 url=url,
                 headers={ 'Authorization' : f"Bearer {token}" },
+                timeout=30,
                 json=_payload
             )
             if res.ok and res.json().get('status') in ['0','1']:
