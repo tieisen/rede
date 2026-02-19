@@ -16,15 +16,15 @@ if not any([api_title,api_description,api_version]):
     raise ValueError("API config not found.")
 
 app = FastAPI(title=api_title,
-                description=api_description,
-                version=api_version)
+              description=api_description,
+              version=api_version)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite qualquer origem
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET","POST"],  # Permite todos os métodos HTTP
-    allow_headers=["*"],  # Permite todos os headers
+    allow_methods=["GET","POST"],
+    allow_headers=["*"],
 )
 
 app.include_router(router, tags=["API"])
