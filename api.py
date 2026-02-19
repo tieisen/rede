@@ -221,7 +221,7 @@ async def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
             endDate=body.endDate
         )
         if res.get('sucesso') and res.get('mensagem'):
-            raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail=str(e))
+            raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail=res.get('mensagem'))
         if not res.get('sucesso'):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=res.get('mensagem', 'Falha ao atualizar dados financeiro.'))
     except Exception as e:
