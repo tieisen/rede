@@ -177,50 +177,33 @@ class Financeiro():
                     pass
                 return new_res
 
-    def buscar(self,token:str,nufin:int=None,nunota:int=None,numnota:int=None) -> dict:
+    def buscar(self,token:str,saleSummaryNumber:int=None,lista:list=None) -> dict:
 
-        def monta_expressao(nufin:int=None,nunota:int=None,numnota:int=None):
+        def monta_expressao(saleSummaryNumber:int=None,lista:list=None):
             nonlocal criteria
 
-            if not any([nufin,nunota,numnota]):
+            if not any([saleSummaryNumber,lista]):
                 return False
             
             try:
-                if nufin:
+                if saleSummaryNumber:
                     criteria = {
                         "expression": {
-                            "$": "this.NUFIN = ?"
+                            "$": "this.AD_REDE_SALESUMNUM = ?"
                         },
                         "parameter": [
                             {
-                                "$": f"{nufin}",
+                                "$": f"{saleSummaryNumber}",
                                 "type": "I"
                             }
                         ]
                     }
-                elif nunota:
+                elif lista:
                     criteria = {
                         "expression": {
-                            "$": "this.NUNOTA = ?"
+                            "$": "this.AD_REDE_SALESUMNUM IN ("+','.join('?' for _ in lista)+")"
                         },
-                        "parameter": [
-                            {
-                                "$": f"{nunota}",
-                                "type": "I"
-                            }
-                        ]
-                    }
-                elif numnota:
-                    criteria = {
-                        "expression": {
-                            "$": "this.NUMNOTA = ?"
-                        },
-                        "parameter": [
-                            {
-                                "$": f"{numnota}",
-                                "type": "I"
-                            }
-                        ]
+                        "parameter": [ { "$": str(i), "type": "I" } for i in lista ]
                     }
                 else:
                     pass
@@ -231,21 +214,18 @@ class Financeiro():
 
         dados_financeiro:dict = {}
         url:str = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=CRUDServiceProvider.loadRecords&outputType=json'
-        fieldset_list:str = '*'
+        fieldset_list:str = 'AD_REDE_AMOUNT,AD_REDE_EXPIRATIONDATE,AD_REDE_INSTALLMENTNUM,AD_REDE_MDRAMOUNT,AD_REDE_MDRFEE,AD_REDE_NETAMOUNT,AD_REDE_PAYMENTDATE,AD_REDE_PAYMENTID,AD_REDE_PROCESSADO,AD_REDE_TID,AD_REDE_SALESUMNUM,NUFIN'
         criteria:dict={}
+        payload:dict={}
 
         try:
-            nufin = int(nufin) if nufin else None
-            nunota = int(nunota) if nunota else None
-            numnota = int(numnota) if numnota else None
+            saleSummaryNumber = int(saleSummaryNumber) if saleSummaryNumber else None
+            lista = [int(i) for i in lista] if lista else None
             
-            if not monta_expressao(nufin=nufin,nunota=nunota,numnota=numnota):
+            if not monta_expressao(saleSummaryNumber=saleSummaryNumber,lista=lista):
                 raise ValueError("Nenhum critério de busca fornecido.")
 
-            res = requests.get(
-                url=url,
-                headers={ "Authorization":f"Bearer {token}" },
-                json={
+            payload = {
                     "serviceName": "CRUDServiceProvider.loadRecords",
                     "requestBody": {
                         "dataSet": {
@@ -260,7 +240,13 @@ class Financeiro():
                             }
                         }
                     }
-                })
+                }
+
+            res = requests.get(
+                url=url,
+                headers={ "Authorization":f"Bearer {token}" },
+                json=payload
+            )
             
             if res.ok and res.json().get('status') in ['0','1']:
                 dados_financeiro = self.formatar_retorno(res.json())
@@ -319,7 +305,7 @@ class Financeiro():
 
         return sucesso
 
-    def formatar_payload(self,companyNumber:int,dados_rede:dict,dados_financeiro:dict) -> list[dict]:
+    def formatar_payload_venda(self,companyNumber:int,dados_rede:dict,dados_financeiro:dict) -> list[dict]:
 
         try:
             return [
@@ -339,6 +325,33 @@ class Financeiro():
                 }
                 for i, item in enumerate(dados_rede.get("content",{}).get("installments",[]))
             ]
+        except Exception as e:
+            logger.error(f"Erro ao formatar payload: {e}")
+            return []
+
+    def formatar_payload_pagamento(self,dados_pagamento:dict,dados_financeiro:dict) -> list[dict]:
+
+        pagamento:dict = {}
+        matching_financeiro:dict = {}
+        payload_upd_snk:list[dict] = []
+        update:dict = {}       
+
+        try:
+            # Formata payload de atualização para a API Sankhya
+            for i, pagamento in enumerate(dados_pagamento):
+                matching_financeiro = next((f for f in dados_financeiro if int(f.get("ad_rede_salesumnum")) == pagamento.get("saleSummaryNumber") and datetime.strptime(f.get('ad_rede_expirationdate'),'%d/%m/%Y').strftime('%Y-%m-%d') == pagamento.get("paymentDate")), None)
+                if matching_financeiro:
+                    update = {
+                        "pk": {
+                            "NUFIN": matching_financeiro.get("nufin")
+                        },
+                        "values": {
+                            "6": datetime.strptime(pagamento.get("paymentDate"), '%Y-%m-%d').strftime('%d/%m/%Y'),
+                            "7": pagamento.get("paymentId")
+                        }
+                    }
+                    payload_upd_snk.append(update)
+            return payload_upd_snk
         except Exception as e:
             logger.error(f"Erro ao formatar payload: {e}")
             return []
