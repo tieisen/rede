@@ -211,7 +211,7 @@ async def atualiza_financeiro(body:RotinaVendaModel) -> dict:
     return res
 
 @router.post("/rotina/atualiza-pagamento", status_code=status.HTTP_200_OK)
-async def atualiza_financeiro(body:RotinaPagamentoModel) -> dict:
+async def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
     res:dict={}
     rotina = Rotina()
     try:        
