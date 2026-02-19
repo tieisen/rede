@@ -52,7 +52,7 @@ class VendasModel(BaseModel):
             raise ValueError("companyNumber inválido")
         return model        
 
-class RotinaModel(BaseModel):
+class RotinaVendaModel(BaseModel):
     companyNumber:int
     startDate:date
     endDate:date
@@ -82,6 +82,23 @@ class RotinaModel(BaseModel):
         if ("nufin" not in model.financeiro[0]) or ("desdobramento" not in model.financeiro[0]):
             raise ValueError("dicionário financeiro inválido")
         return model        
+
+class RotinaPagamentoModel(BaseModel):
+    companyNumber:int
+    startDate:date
+    endDate:date
+    
+    @model_validator(mode="after")
+    def validar_periodo(cls, model):
+        if model.startDate > model.endDate:
+            raise ValueError("startDate não pode ser maior que endDate")
+        return model     
+    
+    @model_validator(mode="after")
+    def validar_companynumber(cls, model):
+        if model.companyNumber not in COMPANY_NUMBER_LIST:
+            raise ValueError("companyNumber inválido")
+        return model     
 
 class VendasPgtoId(BaseModel):
     ambiente:Literal['trn', 'prd']
@@ -175,7 +192,7 @@ async def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar
     return res
 
 @router.post("/rotina/atualiza-financeiro", status_code=status.HTTP_200_OK)
-async def atualiza_financeiro(body:RotinaModel) -> dict:
+async def atualiza_financeiro(body:RotinaVendaModel) -> dict:
     res:dict={}
     rotina = Rotina()
     try:        
@@ -187,6 +204,26 @@ async def atualiza_financeiro(body:RotinaModel) -> dict:
         )
         if not res.get('sucesso'):
             raise Exception(res.get('mensagem', 'Falha ao atualizar dados financeiro.'))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    finally:
+        pass
+    return res
+
+@router.post("/rotina/atualiza-pagamento", status_code=status.HTTP_200_OK)
+async def atualiza_financeiro(body:RotinaPagamentoModel) -> dict:
+    res:dict={}
+    rotina = Rotina()
+    try:        
+        res = rotina.atualizar_dados_pagamento(
+            companyNumber=body.companyNumber,
+            startDate=body.startDate,
+            endDate=body.endDate
+        )
+        if res.get('sucesso') and res.get('mensagem'):
+            raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail=str(e))
+        if not res.get('sucesso'):
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=res.get('mensagem', 'Falha ao atualizar dados financeiro.'))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     finally:
