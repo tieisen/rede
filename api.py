@@ -1,7 +1,7 @@
 from typing import Literal
 from datetime import date
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, Response, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, model_validator
 from rede import *
@@ -221,7 +221,7 @@ async def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
             endDate=body.endDate
         )
         if res.get('sucesso') and res.get('mensagem'):
-            raise HTTPException(status_code=status.HTTP_204_NO_CONTENT, detail=res.get('mensagem'))
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
         if not res.get('sucesso'):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=res.get('mensagem', 'Falha ao atualizar dados financeiro.'))
     except Exception as e:
