@@ -1,7 +1,7 @@
 import os, requests, json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from log import set_logger
+from src.rede.utils.log import set_logger
 logger = set_logger(__name__)
 load_dotenv()
 

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0","wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rede"
+version = "0.1.0"
+description = "Client Python REST para integração com a API de Vendas e Pagamentos da Rede (Itaú)"
+readme = "readme.md"
+requires-python = ">=3.10"
+
+authors = [
+  {name = "Rodrigo Vieira", email = "rodrigo.vieira@grupoeisen.com.br"}
+]
+
+license = { text = "MIT" }
+
+dependencies = [
+    "fastapi>=0.128",
+    "pydantic>=2.12",
+    "python-dotenv>=1.2",
+    "Requests>=2.32",
+    "uvicorn>=0.40"
+]
+
+[project.scripts]
+start = "rede.main"
+
+[project.urls]
+"Homepage" = "https://github.com/tieisen/rede"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

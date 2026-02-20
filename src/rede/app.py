@@ -3,8 +3,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api import router
-from log import set_logger
+from src.rede.controllers.api import router
+from src.rede.utils.log import set_logger
 logger = set_logger(__name__)
 load_dotenv()
 

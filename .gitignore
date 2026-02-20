@@ -1,8 +1,7 @@
-*.test.*
-*.ipynb
 __pycache__
-.env
-db_objects
-*.log
+.local
 venv
+.env
+*.log
 *.json
+*.egg-info

@@ -1,10 +1,10 @@
 from datetime import date
-from rede import Autenticacao as redeAuth
-from rede import Vendas as redeVendas
-from sankhya import Autenticacao as snkAuth
-from sankhya import Financeiro as snkFinanceiro
+from src.rede.services.rede import Autenticacao as redeAuth
+from src.rede.services.rede import Vendas as redeVendas
+from src.rede.services.sankhya import Autenticacao as snkAuth
+from src.rede.services.sankhya import Financeiro as snkFinanceiro
 from dotenv import load_dotenv
-from log import set_logger
+from src.rede.utils.log import set_logger
 logger = set_logger(__name__)
 load_dotenv()
 

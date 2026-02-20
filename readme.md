@@ -15,15 +15,30 @@ Este projeto provê uma base para acessar os serviços de **autenticação**, **
 ## Estrutura do Projeto
 
 ```text
-.
-├── __main__.py           # Ponto de entrada da aplicação (execução como módulo)
-├── api.py                # Camada de comunicação HTTP com a API da Rede
-├── app.py                # Orquestração da aplicação / camada de serviço
-├── log.py                # Configuração e utilitários de logging
-├── rede.py               # Implementação das regras de negócio e endpoints da Rede
-├── requirements.txt      # Dependências do projeto
-├── setup.py              # Script de empacotamento e instalação
-└── .gitignore
+rede/
+├── pyproject.toml
+├── README.md
+├── .gitignore
+├── .env
+├── bootstrap.py
+├── __main__.py
+├── src/
+│   └── rede/
+│       ├── __init__.py
+│       ├── app.py
+│       ├── main.py
+│       ├── controllers/
+│       │   └── api.py
+│       ├── services/
+│       │   ├── rede.py
+│       │   ├── rotina.py
+│       │   └── sankhya.py
+│       ├── utils/
+│       │   └── log.py
+│       ├── __init__.py
+│       ├── app.py
+│       └── main.py
+└── logs/
 ```
 
 ## Instalação
@@ -33,7 +48,7 @@ Este projeto provê uma base para acessar os serviços de **autenticação**, **
 git clone https://github.com/tieisen/rede.git
 
 # Execute o setup do projeto
-python setup.py
+python .
 ```
 
 ## Configuração
