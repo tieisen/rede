@@ -1,7 +1,7 @@
 import os, requests, json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from log import set_logger
+from src.rede.utils.log import set_logger
 logger = set_logger(__name__)
 load_dotenv()
 
@@ -288,8 +288,8 @@ class Financeiro():
         try:
             res = requests.post(
                 url=url,
-                headers={ 'Authorization' : f"Bearer {token}" },
-                timeout=30,
+                headers={ "Authorization":f"Bearer {token}" },
+                timeout=60,
                 json=_payload
             )
             if res.ok and res.json().get('status') in ['0','1']:
@@ -298,7 +298,7 @@ class Financeiro():
                 raise Exception(f"{res.status_code} - {res.text}")
         except Exception as e:
             logger.error(f"Erro ao atualizar dados financeiro: {e}")
-            logger.info("headers: %s", { 'Authorization' : f"Bearer {token}" })
+            logger.info("headers: %s", { "Authorization":f"Bearer {token}" })
             logger.info("payload: %s", _payload)
         finally:
             pass

@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Response, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, model_validator
-from rede import *
-from rotina import Rotina
+from src.rede.services.rede import *
+from src.rede.services.rotina import Rotina
 load_dotenv()
 
 COMPANY_NUMBER_LIST = [int(x) for x in os.getenv("COMPANY_NUMBER_LIST", "").split(",") if x.isdigit()]
