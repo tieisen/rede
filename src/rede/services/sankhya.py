@@ -15,6 +15,7 @@ class Autenticacao():
         self.x_token = os.getenv("X_TOKEN", "")
         self.client_id = os.getenv("CLIENT_ID", "")
         self.client_secret = os.getenv("CLIENT_SECRET", "")
+        self.token = None
 
         if not any([self.caminho_arquivo_token, self.x_token, self.client_id, self.client_secret]):
             logger.critical("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
@@ -132,10 +133,12 @@ class Autenticacao():
             token = self.solicitar_token()
             if token:
                 self.salvar_token_arquivo(token)
+                self.token = token.get('access_token', '')
                 return token.get('access_token', '')
             else:
                 return ''
         else:
+            self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
     def autenticar(self) -> str:
@@ -145,10 +148,12 @@ class Autenticacao():
             token = self.solicitar_token()
             if token:
                 self.salvar_token(token)
+                self.token = token.get('access_token', '')
                 return token.get('access_token', '')
             else:
                 return ''
         else:
+            self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
 class Financeiro():

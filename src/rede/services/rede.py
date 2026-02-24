@@ -16,6 +16,7 @@ class Autenticacao():
         self.pacote = pacote
         self.auth = os.getenv('BASIC_CLIENT_SP',auth)
         self.caminho_arquivo_token = os.getenv("PATH_TOKEN_REDE", "")
+        self.token = None
 
         if not all([self.caminho_arquivo_token, self.auth]):
             logger.critical("Variáveis de ambiente não configuradas corretamente para REDE.")
@@ -214,10 +215,12 @@ class Autenticacao():
             token = self.gerar_token()
             if token:
                 self.salvar_token_arquivo(token)
+                self.token = token.get('access_token', '')
                 return token.get('access_token', '')
             else:
                 return ''
         else:
+            self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
     def autenticar(self) -> str:
@@ -230,10 +233,12 @@ class Autenticacao():
             token = self.gerar_token()
             if token:
                 self.salvar_token(token)
+                self.token = token.get('access_token', '')
                 return token.get('access_token', '')
             else:
                 return ''
         else:
+            self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
 class LinkPagamento():
