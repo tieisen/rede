@@ -24,8 +24,8 @@ class LinkPagamentoModel(BaseModel):
     @model_validator(mode="after")
     def validar_companynumber(cls, model):
         if model.companyNumber not in COMPANY_NUMBER_LIST:
-            raise ValueError("companyNumber inválido")
-        return model
+            raise ValueError("Company Number inválido")
+        return model  
 
 class VendasModel(BaseModel):
     ambiente:Literal['trn', 'prd']
@@ -42,15 +42,15 @@ class VendasModel(BaseModel):
     
     @model_validator(mode="after")
     def validar_nsu(cls, model):
-        if model.nsu is not None and len(str(model.nsu)) < 9:
-            raise ValueError("nsu inválido")
+        if model.nsu is not None and len(str(model.nsu)) < 8:
+            raise ValueError("NSU inválido. Deve conter pelo menos 8 dígitos.")
         return model        
     
     @model_validator(mode="after")
     def validar_companynumber(cls, model):
         if model.companyNumber not in COMPANY_NUMBER_LIST:
-            raise ValueError("companyNumber inválido")
-        return model        
+            raise ValueError("Company Number inválido")
+        return model         
 
 class RotinaVendaModel(BaseModel):
     companyNumber:int
@@ -67,20 +67,20 @@ class RotinaVendaModel(BaseModel):
     
     @model_validator(mode="after")
     def validar_nsu(cls, model):
-        if model.nsu is not None and len(str(model.nsu)) < 9:
-            raise ValueError("nsu inválido")
+        if model.nsu is not None and len(str(model.nsu)) < 8:
+            raise ValueError("NSU inválido. Deve conter pelo menos 8 dígitos.")
         return model        
     
     @model_validator(mode="after")
     def validar_companynumber(cls, model):
         if model.companyNumber not in COMPANY_NUMBER_LIST:
-            raise ValueError("companyNumber inválido")
+            raise ValueError("Company Number inválido")
         return model        
     
     @model_validator(mode="after")
     def validar_financeiro(cls, model):
         if ("nufin" not in model.financeiro[0]) or ("desdobramento" not in model.financeiro[0]):
-            raise ValueError("dicionário financeiro inválido")
+            raise ValueError("Dicionário financeiro inválido")
         return model        
 
 class RotinaPagamentoModel(BaseModel):
@@ -97,7 +97,7 @@ class RotinaPagamentoModel(BaseModel):
     @model_validator(mode="after")
     def validar_companynumber(cls, model):
         if model.companyNumber not in COMPANY_NUMBER_LIST:
-            raise ValueError("companyNumber inválido")
+            raise ValueError("Company Number inválido")
         return model     
 
 class VendasPgtoId(BaseModel):
