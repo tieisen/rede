@@ -9,12 +9,9 @@ def run():
         "python.exe",
     )
 
-    # Se venv não existe → bootstrap
-    if not os.path.exists(python_exec):
-        print("Ambiente não encontrado. Preparando projeto...")
-        subprocess.check_call([sys.executable, "bootstrap.py"])
+    print("Preparando projeto...")
+    subprocess.check_call([sys.executable, "bootstrap.py"])
 
-    # executa aplicação dentro do venv
     subprocess.check_call([python_exec, "-m", "rede.main"])
 
 if __name__ == "__main__":
