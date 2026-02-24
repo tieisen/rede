@@ -114,7 +114,7 @@ def validar_token(credentials: HTTPAuthorizationCredentials = Depends(security))
     return credentials.credentials
 
 @router.get("/info", status_code=status.HTTP_200_OK)
-async def info():
+def info():
     return {
         "status": "API is running",
         "health": "API is healthy",
@@ -122,7 +122,7 @@ async def info():
     }
 
 @router.post("/auth/generate-token", status_code=status.HTTP_200_OK)
-async def gerar_token(body:AutenticacaoModel) -> dict:
+def gerar_token(body:AutenticacaoModel) -> dict:
     res:dict={}
     auth = Autenticacao(
         ambiente=body.ambiente,
@@ -138,7 +138,7 @@ async def gerar_token(body:AutenticacaoModel) -> dict:
     return res
 
 @router.post("/vendas/consulta-parcelas", status_code=status.HTTP_200_OK)
-async def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) -> dict:
+def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) -> dict:
     res:dict={}
     vendas = Vendas()
     try:
@@ -157,7 +157,7 @@ async def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) 
     return res
 
 @router.post("/vendas/consulta-pgto-oc", status_code=status.HTTP_200_OK)
-async def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_token)) -> dict:
+def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_token)) -> dict:
     res:dict={}
     vendas = Vendas()        
     try:
@@ -175,7 +175,7 @@ async def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_tok
     return res
 
 @router.post("/vendas/consulta-pgto-id", status_code=status.HTTP_200_OK)
-async def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token)) -> dict:
+def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token)) -> dict:
     res:dict={}
     vendas = Vendas()        
     try:
@@ -192,7 +192,7 @@ async def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar
     return res
 
 @router.post("/rotina/atualiza-financeiro", status_code=status.HTTP_200_OK)
-async def atualiza_financeiro(body:RotinaVendaModel) -> dict:
+def atualiza_financeiro(body:RotinaVendaModel) -> dict:
     res:dict={}
     rotina = Rotina()
     try:        
@@ -211,7 +211,7 @@ async def atualiza_financeiro(body:RotinaVendaModel) -> dict:
     return res
 
 @router.post("/rotina/atualiza-pagamento", status_code=status.HTTP_200_OK)
-async def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
+def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
     res:dict={}
     rotina = Rotina()
     try:        
