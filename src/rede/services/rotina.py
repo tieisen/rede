@@ -13,7 +13,7 @@ class Rotina():
     def __init__(self):
         pass
 
-    def atualizar_dados_financeiro(self,companyNumber:int,dataVendas:date,nsu:int,dados_financeiro:dict) -> dict:
+    async def atualizar_dados_financeiro(self,companyNumber:int,dataVendas:date,nsu:int,dados_financeiro:dict) -> dict:
 
         snk_auth = snkAuth()
         snk_fin = snkFinanceiro()
@@ -28,7 +28,7 @@ class Rotina():
         tkn_rede:str = ''
 
         try:
-            tkn_snk = snk_auth.autenticar()
+            tkn_snk = await snk_auth.autenticar()
             if not tkn_snk:
                 raise Exception("Falha na autenticação com a API Sankhya.")
             tkn_rede = rede_auth.autenticar()
@@ -60,7 +60,7 @@ class Rotina():
 
         return retorno
 
-    def atualizar_dados_pagamento(self,companyNumber:int,startDate:date,endDate:date) -> dict:
+    async def atualizar_dados_pagamento(self,companyNumber:int,startDate:date,endDate:date) -> dict:
 
         snk_auth = snkAuth()
         snk_fin = snkFinanceiro()
@@ -78,7 +78,7 @@ class Rotina():
         tkn_rede:str = ''
 
         try:
-            tkn_snk = snk_auth.autenticar()
+            tkn_snk = await snk_auth.autenticar()
             if not tkn_snk:
                 raise Exception("Falha na autenticação com a API Sankhya.")
             

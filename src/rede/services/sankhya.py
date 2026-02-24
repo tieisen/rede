@@ -99,7 +99,7 @@ class Autenticacao():
             logger.error(f"Erro ao buscar o token no banco de dados: {e}")
             return {}
 
-    def solicitar_token(self) -> dict:
+    async def solicitar_token(self) -> dict:
 
         url = 'https://api.sankhya.com.br/authenticate'
 
@@ -126,11 +126,11 @@ class Autenticacao():
             logger.error(f"Erro ao solicitar token: {res.status_code} - {res.text}")
             return {}
 
-    def autenticar_arquivo(self) -> str:
+    async def autenticar_arquivo(self) -> str:
 
         token:dict = self.carregar_token_arquivo()
         if not token or datetime.strptime(token.get('expiration_datetime', '1970-01-01 00:00'), '%Y-%m-%d %H:%M') <= datetime.now():
-            token = self.solicitar_token()
+            token = await self.solicitar_token()
             if token:
                 self.salvar_token_arquivo(token)
                 self.token = token.get('access_token', '')
@@ -141,11 +141,11 @@ class Autenticacao():
             self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
-    def autenticar(self) -> str:
+    async def autenticar(self) -> str:
 
         token:dict = self.carregar_token()
         if not token or not token.get('expires_at') or token.get('expires_at') <= datetime.now():
-            token = self.solicitar_token()
+            token = await self.solicitar_token()
             if token:
                 self.salvar_token(token)
                 self.token = token.get('access_token', '')
