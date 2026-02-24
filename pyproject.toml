@@ -20,11 +20,12 @@ dependencies = [
     "pydantic>=2.12",
     "python-dotenv>=1.2",
     "Requests>=2.32",
-    "uvicorn>=0.40"
+    "uvicorn>=0.40",
+    "SQLAlchemy>=2.0"
 ]
 
 [project.scripts]
-start = "rede.main"
+start = "rede.main:main"
 
 [project.urls]
 "Homepage" = "https://github.com/tieisen/rede"

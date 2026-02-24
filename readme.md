@@ -24,18 +24,20 @@ rede/
 ├── __main__.py
 ├── src/
 │   └── rede/
-│       ├── __init__.py
 │       ├── app.py
 │       ├── main.py
 │       ├── controllers/
 │       │   └── api.py
+│       ├── database/
+│       │   ├── database.py
+│       │   └── models.py
 │       ├── services/
 │       │   ├── rede.py
 │       │   ├── rotina.py
-│       │   └── sankhya.py
+│       │   ├── sankhya.py
+│       │   └── token.py
 │       ├── utils/
 │       │   └── log.py
-│       ├── __init__.py
 │       ├── app.py
 │       └── main.py
 └── logs/
