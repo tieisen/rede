@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.rede.controllers.api import router
+from src.rede.services.scheduler import SchedulerService
+from contextlib import asynccontextmanager
 from src.rede.utils.log import set_logger
 logger = set_logger(__name__)
 load_dotenv()
@@ -15,9 +17,19 @@ api_version:str = os.getenv('API_VERSION')
 if not any([api_title,api_description,api_version]):
     raise ValueError("API config not found.")
 
+sch = SchedulerService()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup code
+    sch.start_scheduler()
+    yield
+    # Shutdown code
+    sch.stop_scheduler()
+
 app = FastAPI(title=api_title,
               description=api_description,
-              version=api_version)
+              version=api_version,
+              lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
