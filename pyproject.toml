@@ -21,7 +21,8 @@ dependencies = [
     "python-dotenv>=1.2",
     "Requests>=2.32",
     "uvicorn>=0.40",
-    "SQLAlchemy>=2.0"
+    "SQLAlchemy>=2.0",
+    "apscheduler>=3.11"
 ]
 
 [project.scripts]
