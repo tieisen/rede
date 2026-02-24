@@ -192,11 +192,11 @@ def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token
     return res
 
 @router.post("/rotina/atualiza-financeiro", status_code=status.HTTP_200_OK)
-async def atualiza_financeiro(body:RotinaVendaModel) -> dict:
-    res:dict={}
-    rotina = Rotina()
+def atualiza_financeiro(body:RotinaVendaModel) -> dict:
+    res:dict={}   
+    rotina = Rotina() 
     try:        
-        res = await rotina.atualizar_dados_financeiro(
+        res = rotina.atualizar_dados_financeiro(
             companyNumber=body.companyNumber,
             dataVendas=body.startDate,
             nsu=body.nsu,
@@ -211,11 +211,11 @@ async def atualiza_financeiro(body:RotinaVendaModel) -> dict:
     return res
 
 @router.post("/rotina/atualiza-pagamento", status_code=status.HTTP_200_OK)
-async def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
+def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
     res:dict={}
     rotina = Rotina()
     try:        
-        res = await rotina.atualizar_dados_pagamento(
+        res = rotina.atualizar_dados_pagamento(
             companyNumber=body.companyNumber,
             startDate=body.startDate,
             endDate=body.endDate

@@ -1,4 +1,5 @@
 from pathlib import Path
+from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
@@ -33,7 +34,7 @@ def criar_tabelas():
     from . import models  # registra models
     Base.metadata.create_all(bind=engine)
 
-
+@contextmanager
 def get_session():
     session = SessionLocal()
     try:

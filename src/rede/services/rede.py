@@ -153,20 +153,20 @@ class Autenticacao():
         """
 
         status:bool = False
-        session = next(get_session())
-        token_servicedb = TokenService(db=session)
-        try:            
-            token_servicedb.salvar_token(
-                sistema=self.sistema,
-                access_token=token.get('access_token', ''),
-                refresh_token=token.get('refresh_token', ''),
-                expires_at=datetime.strptime(token['expire_time'], '%Y-%m-%d %H:%M:%S') if token.get('expire_time') else None
-            )
-            status = True
-        except Exception as e:
-            logger.error(f"Erro ao salvar o token no banco de dados: {e}")
-        finally:
-            pass
+        with get_session() as session:
+            token_servicedb = TokenService(db=session)
+            try:            
+                token_servicedb.salvar_token(
+                    sistema=self.sistema,
+                    access_token=token.get('access_token', ''),
+                    refresh_token=token.get('refresh_token', ''),
+                    expires_at=datetime.strptime(token['expire_time'], '%Y-%m-%d %H:%M:%S') if token.get('expire_time') else None
+                )
+                status = True
+            except Exception as e:
+                logger.error(f"Erro ao salvar o token no banco de dados: {e}")
+            finally:
+                pass
         return status
 
     def carregar_token_arquivo(self) -> dict:
@@ -192,18 +192,18 @@ class Autenticacao():
         Carrega o token do banco de dados.
             :return dict: token carregado.
         """
-        session = next(get_session())
-        token_servicedb = TokenService(db=session)
-        try:
-            token = token_servicedb.obter_token(sistema=self.sistema)
-            if token:
-                return token.__dict__
-            else:
-                logger.warning("Token não encontrado no banco de dados.")
-                return {}
-        except Exception as e:
-            logger.error(f"Erro ao buscar o token no banco de dados: {e}")
-            return {}
+        token:dict = {}
+        with get_session() as session:
+            token_servicedb = TokenService(db=session)
+            try:
+                token = token_servicedb.obter_token(sistema=self.sistema)
+                if token:
+                    return token.__dict__
+                else:
+                    logger.warning("Token não encontrado no banco de dados.")                    
+            except Exception as e:
+                logger.error(f"Erro ao buscar o token no banco de dados: {e}")
+        return token
 
     def autenticar_arquivo(self) -> str:
         """

@@ -54,21 +54,21 @@ class Autenticacao():
                 return ""
 
         status:bool = False
-        session = next(get_session())
-        token_servicedb = TokenService(db=session)
-        try:
-            token['expiration_datetime'] = calcular_expiracao(token.get('expires_in', 0))
-            token_servicedb.salvar_token(
-                sistema=self.sistema,
-                access_token=token.get('access_token', ''),
-                refresh_token=token.get('refresh_token', ''),
-                expires_at=datetime.strptime(token['expiration_datetime'], '%Y-%m-%d %H:%M') if token.get('expiration_datetime') else None
-            )
-            status = True
-        except Exception as e:
-            logger.error(f"Erro ao salvar o token no banco de dados: {e}")
-        finally:
-            pass
+        with get_session() as session:
+            token_servicedb = TokenService(db=session)
+            try:
+                token['expiration_datetime'] = calcular_expiracao(token.get('expires_in', 0))
+                token_servicedb.salvar_token(
+                    sistema=self.sistema,
+                    access_token=token.get('access_token', ''),
+                    refresh_token=token.get('refresh_token', ''),
+                    expires_at=datetime.strptime(token['expiration_datetime'], '%Y-%m-%d %H:%M') if token.get('expiration_datetime') else None
+                )
+                status = True
+            except Exception as e:
+                logger.error(f"Erro ao salvar o token no banco de dados: {e}")
+            finally:
+                pass
         return status
 
     def carregar_token_arquivo(self) -> dict:
@@ -86,20 +86,22 @@ class Autenticacao():
             return {}
 
     def carregar_token(self) -> dict:
-        session = next(get_session())
-        token_servicedb = TokenService(db=session)
-        try:
-            token = token_servicedb.obter_token(sistema=self.sistema)
-            if token:
-                return token.__dict__
-            else:
-                logger.warning("Token não encontrado no banco de dados.")
-                return {}
-        except Exception as e:
-            logger.error(f"Erro ao buscar o token no banco de dados: {e}")
-            return {}
+        token:dict = {}
+        with get_session() as session:
+            token_servicedb = TokenService(db=session)
+            try:
+                token_db = token_servicedb.obter_token(sistema=self.sistema)
+                if token_db:
+                    token = token_db.__dict__
+                else:
+                    logger.warning("Token não encontrado no banco de dados.")                    
+            except Exception as e:
+                logger.error(f"Erro ao buscar o token no banco de dados: {e}")
+            finally:
+                pass
+        return token
 
-    async def solicitar_token(self) -> dict:
+    def solicitar_token(self) -> dict:
 
         url = 'https://api.sankhya.com.br/authenticate'
 
@@ -126,11 +128,11 @@ class Autenticacao():
             logger.error(f"Erro ao solicitar token: {res.status_code} - {res.text}")
             return {}
 
-    async def autenticar_arquivo(self) -> str:
+    def autenticar_arquivo(self) -> str:
 
         token:dict = self.carregar_token_arquivo()
         if not token or datetime.strptime(token.get('expiration_datetime', '1970-01-01 00:00'), '%Y-%m-%d %H:%M') <= datetime.now():
-            token = await self.solicitar_token()
+            token = self.solicitar_token()
             if token:
                 self.salvar_token_arquivo(token)
                 self.token = token.get('access_token', '')
@@ -141,11 +143,11 @@ class Autenticacao():
             self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
-    async def autenticar(self) -> str:
+    def autenticar(self) -> str:
 
         token:dict = self.carregar_token()
         if not token or not token.get('expires_at') or token.get('expires_at') <= datetime.now():
-            token = await self.solicitar_token()
+            token = self.solicitar_token()
             if token:
                 self.salvar_token(token)
                 self.token = token.get('access_token', '')
@@ -325,7 +327,7 @@ class Financeiro():
         
         sucesso:bool = False
         url:str = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=DatasetSP.save&outputType=json'        
-        _payload = {
+        payload_send = {
             "serviceName":"DatasetSP.save",
             "requestBody":{
                 "entityName":"Financeiro",
@@ -351,8 +353,7 @@ class Financeiro():
             res = requests.post(
                 url=url,
                 headers={ "Authorization":f"Bearer {token}" },
-                timeout=60,
-                json=_payload
+                json=payload_send
             )
             if res.ok and res.json().get('status') in ['0','1']:
                 sucesso = True if res.json().get('status') == '1' else False
@@ -361,7 +362,7 @@ class Financeiro():
         except Exception as e:
             logger.error(f"Erro ao atualizar dados financeiro: {e}")
             logger.info("headers: %s", { "Authorization":f"Bearer {token}" })
-            logger.info("payload: %s", _payload)
+            logger.info("payload: %s", payload_send)
         finally:
             pass
 
