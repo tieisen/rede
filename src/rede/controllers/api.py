@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Response, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, model_validator
 from src.rede.services.rede import *
-from src.rede.services.rotina import Rotina
+from src.rede.services.rotina import RotinaService
 load_dotenv()
 
 COMPANY_NUMBER_LIST = [int(x) for x in os.getenv("COMPANY_NUMBER_LIST", "").split(",") if x.isdigit()]
@@ -124,7 +124,7 @@ def info():
 @router.post("/auth/generate-token", status_code=status.HTTP_200_OK)
 def gerar_token(body:AutenticacaoModel) -> dict:
     res:dict={}
-    auth = Autenticacao(
+    auth = AutenticacaoService(
         ambiente=body.ambiente,
         pacote=body.pacote,
         auth=body.auth
@@ -140,7 +140,7 @@ def gerar_token(body:AutenticacaoModel) -> dict:
 @router.post("/vendas/consulta-parcelas", status_code=status.HTTP_200_OK)
 def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) -> dict:
     res:dict={}
-    vendas = Vendas()
+    vendas = VendasService()
     try:
         res = vendas.consultar_vendas_parceladas(
             ambiente=body.ambiente,
@@ -159,7 +159,7 @@ def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) -> dic
 @router.post("/vendas/consulta-pgto-oc", status_code=status.HTTP_200_OK)
 def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_token)) -> dict:
     res:dict={}
-    vendas = Vendas()        
+    vendas = VendasService()        
     try:
         res = vendas.consultar_pagamentos_oc(
             ambiente=body.ambiente,
@@ -177,7 +177,7 @@ def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_token)) -
 @router.post("/vendas/consulta-pgto-id", status_code=status.HTTP_200_OK)
 def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token)) -> dict:
     res:dict={}
-    vendas = Vendas()        
+    vendas = VendasService()        
     try:
         res = vendas.consultar_pagamentos_id(
             ambiente=body.ambiente,
@@ -194,7 +194,7 @@ def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token
 @router.post("/rotina/atualiza-financeiro", status_code=status.HTTP_200_OK)
 def atualiza_financeiro(body:RotinaVendaModel) -> dict:
     res:dict={}   
-    rotina = Rotina() 
+    rotina = RotinaService() 
     try:        
         res = rotina.atualizar_dados_financeiro(
             companyNumber=body.companyNumber,
@@ -213,7 +213,7 @@ def atualiza_financeiro(body:RotinaVendaModel) -> dict:
 @router.post("/rotina/atualiza-pagamento", status_code=status.HTTP_200_OK)
 def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
     res:dict={}
-    rotina = Rotina()
+    rotina = RotinaService()
     try:        
         res = rotina.atualizar_dados_pagamento(
             companyNumber=body.companyNumber,
