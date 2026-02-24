@@ -35,6 +35,7 @@ rede/
 │       │   ├── rede.py
 │       │   ├── rotina.py
 │       │   ├── sankhya.py
+│       │   ├── scheduler.py
 │       │   └── token.py
 │       ├── utils/
 │       │   └── log.py

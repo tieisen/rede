@@ -7,7 +7,7 @@ from src.rede.database.database import get_session
 logger = set_logger(__name__)
 load_dotenv()
 
-class Autenticacao():
+class AutenticacaoService():
 
     def __init__(self):
         self.sistema = 'sankhya'
@@ -158,7 +158,7 @@ class Autenticacao():
             self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
-class Financeiro():
+class FinanceiroService():
 
     def __init__(self):
         pass

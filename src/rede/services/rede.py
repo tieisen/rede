@@ -8,7 +8,7 @@ from src.rede.database.database import get_session
 logger = set_logger(__name__)
 load_dotenv()
 
-class Autenticacao():
+class AutenticacaoService():
 
     def __init__(self,ambiente: Literal['trn', 'prd']='prd',pacote: Literal['pgto', 'vendas']='vendas',auth:str=''):
         self.sistema = 'rede'
@@ -241,7 +241,7 @@ class Autenticacao():
             self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
-class LinkPagamento():
+class LinkPagamentoService():
 
     def __init__(self):
         pass
@@ -328,7 +328,7 @@ class LinkPagamento():
         
         return data
 
-class Vendas():
+class VendasService():
 
     def __init__(self):
         pass

@@ -1,9 +1,8 @@
 import os
 from datetime import date, timedelta
-# from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
-from src.rede.services.rotina import Rotina
+from src.rede.services.rotina import RotinaService
 from src.rede.utils.log import set_logger
 from dotenv import load_dotenv
 
@@ -48,7 +47,7 @@ class SchedulerService:
         start_date = yesterday
         end_date = yesterday
 
-        rotina = Rotina()
+        rotina = RotinaService()
 
         for company_number in company_numbers:
             logger.info(f"Processando pagamentos para a empresa {company_number} para o período de {start_date} a {end_date}.")
@@ -76,13 +75,13 @@ class SchedulerService:
         """
 
         executors = {
-            "default": ThreadPoolExecutor(1)  # Apenas 1 thread
+            "default": ThreadPoolExecutor(1)
         }
 
         job_defaults = {
-            "coalesce": True,        # junta execuções perdidas
-            "max_instances": 1,      # nunca roda mais de 1 instância
-            "misfire_grace_time": 3600  # tolera 1h de atraso
+            "coalesce": True,
+            "max_instances": 1,
+            "misfire_grace_time": 3600
         }
 
         self.scheduler = BackgroundScheduler(

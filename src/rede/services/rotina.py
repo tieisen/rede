@@ -1,14 +1,14 @@
 from datetime import date
-from src.rede.services.rede import Autenticacao as redeAuth
-from src.rede.services.rede import Vendas as redeVendas
-from src.rede.services.sankhya import Autenticacao as snkAuth
-from src.rede.services.sankhya import Financeiro as snkFinanceiro
+from src.rede.services.rede import AutenticacaoService as redeAuth
+from src.rede.services.rede import VendasService
+from src.rede.services.sankhya import AutenticacaoService as snkAuth
+from src.rede.services.sankhya import FinanceiroService
 from dotenv import load_dotenv
 from src.rede.utils.log import set_logger
 logger = set_logger(__name__)
 load_dotenv()
 
-class Rotina():
+class RotinaService():
 
     def __init__(self):
         pass
@@ -16,9 +16,9 @@ class Rotina():
     def atualizar_dados_financeiro(self,companyNumber:int,dataVendas:date,nsu:int,dados_financeiro:dict) -> dict:
 
         snk_auth = snkAuth()
-        snk_fin = snkFinanceiro()
+        snk_fin = FinanceiroService()
         rede_auth = redeAuth()
-        rede_venda = redeVendas()
+        rede_venda = VendasService()
 
         payload_fin_snk:dict = {}
         upd_fin_snk:dict = {}
@@ -63,9 +63,9 @@ class Rotina():
     def atualizar_dados_pagamento(self,companyNumber:int,startDate:date,endDate:date) -> dict:
 
         snk_auth = snkAuth()
-        snk_fin = snkFinanceiro()
+        snk_fin = FinanceiroService()
         rede_auth = redeAuth()
-        rede_venda = redeVendas()
+        rede_venda = VendasService()
 
         dados_pagamento_raw:list[dict] = []
         dados_pagamento:list[dict] = []
