@@ -2,12 +2,15 @@ import os, requests, json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from src.rede.utils.log import set_logger
+from src.rede.services.token import TokenService
+from src.rede.database.database import get_session
 logger = set_logger(__name__)
 load_dotenv()
 
 class Autenticacao():
 
     def __init__(self):
+        self.sistema = 'sankhya'
         self.caminho_arquivo_token = os.getenv("PATH_TOKEN_SNK", "")
         self.x_token = os.getenv("X_TOKEN", "")
         self.client_id = os.getenv("CLIENT_ID", "")
@@ -16,7 +19,6 @@ class Autenticacao():
         if not any([self.caminho_arquivo_token, self.x_token, self.client_id, self.client_secret]):
             logger.critical("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
             raise Exception("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
-
 
     def salvar_token_arquivo(self, token: dict) -> bool:
         
@@ -40,6 +42,34 @@ class Autenticacao():
             pass
         return status
 
+    def salvar_token(self, token: dict) -> bool:
+        
+        def calcular_expiracao(segundos: int) -> str:
+            try:
+                expiracao = datetime.now() + timedelta(seconds=(segundos-60))
+                return expiracao.strftime('%Y-%m-%d %H:%M')
+            except Exception as e:
+                logger.error(f"Erro ao calcular expiração do token: {e}")
+                return ""
+
+        status:bool = False
+        session = next(get_session())
+        token_servicedb = TokenService(db=session)
+        try:
+            token['expiration_datetime'] = calcular_expiracao(token.get('expires_in', 0))
+            token_servicedb.salvar_token(
+                sistema=self.sistema,
+                access_token=token.get('access_token', ''),
+                refresh_token=token.get('refresh_token', ''),
+                expires_at=datetime.strptime(token['expiration_datetime'], '%Y-%m-%d %H:%M') if token.get('expiration_datetime') else None
+            )
+            status = True
+        except Exception as e:
+            logger.error(f"Erro ao salvar o token no banco de dados: {e}")
+        finally:
+            pass
+        return status
+
     def carregar_token_arquivo(self) -> dict:
 
         try:
@@ -52,6 +82,20 @@ class Autenticacao():
                 return {}
         except Exception as e:
             logger.error(f"Erro ao carregar o token do arquivo: {e}")
+            return {}
+
+    def carregar_token(self) -> dict:
+        session = next(get_session())
+        token_servicedb = TokenService(db=session)
+        try:
+            token = token_servicedb.obter_token(sistema=self.sistema)
+            if token:
+                return token.__dict__
+            else:
+                logger.warning("Token não encontrado no banco de dados.")
+                return {}
+        except Exception as e:
+            logger.error(f"Erro ao buscar o token no banco de dados: {e}")
             return {}
 
     def solicitar_token(self) -> dict:
@@ -81,13 +125,26 @@ class Autenticacao():
             logger.error(f"Erro ao solicitar token: {res.status_code} - {res.text}")
             return {}
 
-    def autenticar(self) -> str:
+    def autenticar_arquivo(self) -> str:
 
         token:dict = self.carregar_token_arquivo()
         if not token or datetime.strptime(token.get('expiration_datetime', '1970-01-01 00:00'), '%Y-%m-%d %H:%M') <= datetime.now():
             token = self.solicitar_token()
             if token:
                 self.salvar_token_arquivo(token)
+                return token.get('access_token', '')
+            else:
+                return ''
+        else:
+            return token.get('access_token', '')
+
+    def autenticar(self) -> str:
+
+        token:dict = self.carregar_token()
+        if not token or not token.get('expires_at') or token.get('expires_at') <= datetime.now():
+            token = self.solicitar_token()
+            if token:
+                self.salvar_token(token)
                 return token.get('access_token', '')
             else:
                 return ''

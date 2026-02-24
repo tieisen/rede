@@ -3,12 +3,15 @@ from typing import Literal
 from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 from src.rede.utils.log import set_logger
+from src.rede.services.token import TokenService
+from src.rede.database.database import get_session
 logger = set_logger(__name__)
 load_dotenv()
 
 class Autenticacao():
 
     def __init__(self,ambiente: Literal['trn', 'prd']='prd',pacote: Literal['pgto', 'vendas']='vendas',auth:str=''):
+        self.sistema = 'rede'
         self.ambiente = ambiente
         self.pacote = pacote
         self.auth = os.getenv('BASIC_CLIENT_SP',auth)
@@ -142,6 +145,29 @@ class Autenticacao():
             pass
         return status
 
+    def salvar_token(self, token: dict) -> bool:
+        """
+        Salva o token no banco de dados.            
+            :param token: token a ser salvo.
+        """
+
+        status:bool = False
+        session = next(get_session())
+        token_servicedb = TokenService(db=session)
+        try:            
+            token_servicedb.salvar_token(
+                sistema=self.sistema,
+                access_token=token.get('access_token', ''),
+                refresh_token=token.get('refresh_token', ''),
+                expires_at=datetime.strptime(token['expire_time'], '%Y-%m-%d %H:%M:%S') if token.get('expire_time') else None
+            )
+            status = True
+        except Exception as e:
+            logger.error(f"Erro ao salvar o token no banco de dados: {e}")
+        finally:
+            pass
+        return status
+
     def carregar_token_arquivo(self) -> dict:
         """
         Carrega o token de um arquivo de texto.
@@ -160,7 +186,25 @@ class Autenticacao():
             logger.error(f"Erro ao carregar o token do arquivo: {e}")
             return {}
 
-    def autenticar(self) -> str:
+    def carregar_token(self) -> dict:
+        """
+        Carrega o token do banco de dados.
+            :return dict: token carregado.
+        """
+        session = next(get_session())
+        token_servicedb = TokenService(db=session)
+        try:
+            token = token_servicedb.obter_token(sistema=self.sistema)
+            if token:
+                return token.__dict__
+            else:
+                logger.warning("Token não encontrado no banco de dados.")
+                return {}
+        except Exception as e:
+            logger.error(f"Erro ao buscar o token no banco de dados: {e}")
+            return {}
+
+    def autenticar_arquivo(self) -> str:
         """
         Realiza o processo de autenticação, verificando se o token existente é válido ou se é necessário solicitar um novo token.
             :return str: token de acesso válido para uso nas requisições à API.
@@ -170,6 +214,22 @@ class Autenticacao():
             token = self.gerar_token()
             if token:
                 self.salvar_token_arquivo(token)
+                return token.get('access_token', '')
+            else:
+                return ''
+        else:
+            return token.get('access_token', '')
+
+    def autenticar(self) -> str:
+        """
+        Realiza o processo de autenticação, verificando se o token existente é válido ou se é necessário solicitar um novo token.
+            :return str: token de acesso válido para uso nas requisições à API.
+        """
+        token:dict = self.carregar_token()
+        if not token or not token.get('expires_at') or token.get('expires_at') <= datetime.now():
+            token = self.gerar_token()
+            if token:
+                self.salvar_token(token)
                 return token.get('access_token', '')
             else:
                 return ''
