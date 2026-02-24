@@ -27,9 +27,15 @@ def set_logger(name:str) -> logging:
     """
 
     logger = logging.getLogger(name)
+   
     logging.basicConfig(filename=buscar_path(),
                         encoding='utf-8',
                         format=os.getenv('LOGGER_FORMAT'),
                         datefmt='%Y-%m-%d %H:%M:%S',
                         level=logging.INFO)
+    
+    # silencia libs verbosas
+    logging.getLogger("apscheduler").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
     return logger
