@@ -68,7 +68,7 @@ class AutenticacaoService():
             except Exception as e:
                 logger.error(f"Erro ao salvar o token no banco de dados: {e}")
             finally:
-                pass
+                session.close()
         return status
 
     def carregar_token_arquivo(self) -> dict:
@@ -98,7 +98,7 @@ class AutenticacaoService():
             except Exception as e:
                 logger.error(f"Erro ao buscar o token no banco de dados: {e}")
             finally:
-                pass
+                session.close()
         return token
 
     def solicitar_token(self) -> dict:
@@ -348,11 +348,15 @@ class FinanceiroService():
                 "records": payload
             }
         }
+        headers = { "Authorization":f"Bearer {token}" }
+
+        logger.info(f"Enviando headers de atualização para a API Sankhya: {headers}")
+        logger.info(f"Enviando payload de atualização para a API Sankhya: {payload_send}")        
 
         try:
             res = requests.post(
                 url=url,
-                headers={ "Authorization":f"Bearer {token}" },
+                headers=headers,
                 json=payload_send
             )
             if res.ok and res.json().get('status') in ['0','1']:

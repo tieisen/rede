@@ -166,7 +166,7 @@ class AutenticacaoService():
             except Exception as e:
                 logger.error(f"Erro ao salvar o token no banco de dados: {e}")
             finally:
-                pass
+                session.close()
         return status
 
     def carregar_token_arquivo(self) -> dict:
@@ -203,6 +203,8 @@ class AutenticacaoService():
                     logger.warning("Token não encontrado no banco de dados.")                    
             except Exception as e:
                 logger.error(f"Erro ao buscar o token no banco de dados: {e}")
+            finally:
+                session.close()
         return token
 
     def autenticar_arquivo(self) -> str:
