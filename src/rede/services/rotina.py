@@ -11,14 +11,12 @@ load_dotenv()
 class RotinaService():
 
     def __init__(self):
-        pass
+        self.snk_auth = snkAuth()
+        self.snk_fin = FinanceiroService()
+        self.rede_auth = redeAuth()
+        self.rede_venda = VendasService()
 
     def atualizar_dados_financeiro(self,companyNumber:int,dataVendas:date,nsu:int,dados_financeiro:dict) -> dict:
-
-        snk_auth = snkAuth()
-        snk_fin = FinanceiroService()
-        rede_auth = redeAuth()
-        rede_venda = VendasService()
 
         payload_fin_snk:dict = {}
         upd_fin_snk:dict = {}
@@ -27,26 +25,34 @@ class RotinaService():
         tkn_snk:str = ''
         tkn_rede:str = ''
 
+        logger.info(f"Iniciando atualização de dados financeiro para companyNumber={companyNumber}, dataVendas={dataVendas}, nsu={nsu}")
         try:
-            tkn_snk = snk_auth.autenticar()
+            logger.info("- Autenticando com a API Sankhya...")    
+            tkn_snk = self.snk_auth.autenticar()
             if not tkn_snk:
                 raise Exception("Falha na autenticação com a API Sankhya.")
-            tkn_rede = rede_auth.autenticar()
+            
+            logger.info("- Autenticando com a API Rede...")
+            tkn_rede = self.rede_auth.autenticar()
             if not tkn_rede:
                 raise Exception("Falha na autenticação com a API Rede.")
             
-            dados_rede = rede_venda.consultar_vendas_parceladas(token=tkn_rede,companyNumber=companyNumber,startDate=dataVendas,endDate=dataVendas,nsu=nsu)
+            logger.info("- Consultando vendas parceladas na API Rede...")
+            dados_rede = self.rede_venda.consultar_vendas_parceladas(token=tkn_rede,companyNumber=companyNumber,startDate=dataVendas,endDate=dataVendas,nsu=nsu)
             if 'message' in dados_rede:
                 raise Exception(dados_rede.get('message'))
             
-            payload_fin_snk = snk_fin.formatar_payload_venda(companyNumber=companyNumber, dados_rede=dados_rede,dados_financeiro=dados_financeiro)
+            logger.info("- Formatando payload de atualização para a API Sankhya...")
+            payload_fin_snk = self.snk_fin.formatar_payload_venda(companyNumber=companyNumber, dados_rede=dados_rede,dados_financeiro=dados_financeiro)
             if not payload_fin_snk:
                 raise Exception("Falha ao formatar payload financeiro.")
 
-            upd_fin_snk = snk_fin.atualizar(token=tkn_snk, payload=payload_fin_snk)
+            logger.info("- Atualizando dados financeiro na API Sankhya...")
+            upd_fin_snk = self.snk_fin.atualizar(token=tkn_snk, payload=payload_fin_snk)
             retorno['sucesso'] = upd_fin_snk
             if not upd_fin_snk:
                 raise Exception("Falha ao atualizar dados financeiro.")
+            logger.info("Dados financeiro atualizados com sucesso!")
         except Exception as e:
             msg = f"Erro ao atualizar dados financeiro: {str(e)}"
             retorno['mensagem'] = msg
@@ -62,11 +68,6 @@ class RotinaService():
 
     def atualizar_dados_pagamento(self,companyNumber:int,startDate:date,endDate:date) -> dict:
 
-        snk_auth = snkAuth()
-        snk_fin = FinanceiroService()
-        rede_auth = redeAuth()
-        rede_venda = VendasService()
-
         dados_pagamento_raw:list[dict] = []
         dados_pagamento:list[dict] = []
         lista_salesumnum:list[int] = []
@@ -78,16 +79,16 @@ class RotinaService():
         tkn_rede:str = ''
 
         try:
-            tkn_snk = snk_auth.autenticar()
+            tkn_snk = self.snk_auth.autenticar()
             if not tkn_snk:
                 raise Exception("Falha na autenticação com a API Sankhya.")
             
-            tkn_rede = rede_auth.autenticar()
+            tkn_rede = self.rede_auth.autenticar()
             if not tkn_rede:
                 raise Exception("Falha na autenticação com a API Rede.")
             
             # Busca dados de pagamento na API Rede
-            dados_pagamento_raw = rede_venda.consultar_pagamentos_oc(token=tkn_rede,
+            dados_pagamento_raw = self.rede_venda.consultar_pagamentos_oc(token=tkn_rede,
                                                                      companyNumber=companyNumber,
                                                                      startDate=startDate,
                                                                      endDate=endDate)
@@ -102,16 +103,16 @@ class RotinaService():
             if not lista_salesumnum:
                 raise Exception("Nenhum saleSummaryNumber encontrado nos pagamentos")
             
-            dados_financeiro = snk_fin.buscar(token=tkn_snk,lista=lista_salesumnum)                
+            dados_financeiro = self.snk_fin.buscar(token=tkn_snk,lista=lista_salesumnum)                
             if not dados_financeiro:
                 raise Exception("Nenhum registro financeiro encontrado para os salesSummaryNumber")
 
             # Formata payload de atualização para a API Sankhya com base nos dados de pagamento e financeiro encontrados
-            payload_upd_snk = snk_fin.formatar_payload_pagamento(dados_pagamento=dados_pagamento, dados_financeiro=dados_financeiro)
+            payload_upd_snk = self.snk_fin.formatar_payload_pagamento(dados_pagamento=dados_pagamento, dados_financeiro=dados_financeiro)
             if not payload_upd_snk:
                 raise Exception("Falha ao formatar payload financeiro.")
 
-            upd_fin_snk = snk_fin.atualizar(token=tkn_snk, payload=payload_upd_snk)
+            upd_fin_snk = self.snk_fin.atualizar(token=tkn_snk, payload=payload_upd_snk)
             retorno['sucesso'] = upd_fin_snk
             if not upd_fin_snk:
                 raise Exception("Falha ao atualizar dados financeiro.")
