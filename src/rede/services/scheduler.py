@@ -31,9 +31,9 @@ class SchedulerService:
         """
         logger.info("Iniciando job de atualização de dados de pagamento.")
         
-        company_numbers_str = os.getenv("COMPANY_NUMBERS")
+        company_numbers_str = os.getenv("COMPANY_NUMBER_LIST")
         if not company_numbers_str:
-            logger.error("Variável de ambiente COMPANY_NUMBERS não configurada. O job não será executado.")
+            logger.error("Variável de ambiente COMPANY_NUMBER_LIST não configurada. O job não será executado.")
             return
 
         try:
