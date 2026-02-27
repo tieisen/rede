@@ -7,15 +7,23 @@ from src.rede.database.database import get_session
 logger = set_logger(__name__)
 load_dotenv()
 
-class AutenticacaoService():
+class AutenticacaoService:
 
-    def __init__(self):
+    def __init__(self, versao:str='v1'):
+        self.versao = versao
         self.sistema = 'sankhya'
         self.caminho_arquivo_token = os.getenv("PATH_TOKEN_SNK", "")
         self.x_token = os.getenv("X_TOKEN", "")
         self.client_id = os.getenv("CLIENT_ID", "")
         self.client_secret = os.getenv("CLIENT_SECRET", "")
         self.token = None
+        self.token_snk = os.getenv("TOKEN","")
+        self.appkey = os.getenv("APP_KEY","")
+        self.username = os.getenv("USERNAME_API","")
+        self.password = os.getenv("PASSWORD","")
+        self.timeout_token_v1 = int(os.getenv("TIMEOUT_TOKEN_MIN")) * 60
+        self.url_login_v1 = os.getenv("URL_V1","")
+        self.url_login_v2 = os.getenv("URL_V2","")
 
         if not any([self.caminho_arquivo_token, self.x_token, self.client_id, self.client_secret]):
             logger.critical("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
@@ -101,9 +109,9 @@ class AutenticacaoService():
                 session.close()
         return token
 
-    def solicitar_token(self) -> dict:
+    def logar_v2(self) -> dict:
 
-        url = 'https://api.sankhya.com.br/authenticate'
+        auth:dict={}
 
         header = {
             'X-Token':self.x_token,
@@ -117,22 +125,68 @@ class AutenticacaoService():
             'client_secret':self.client_secret
         }
 
-        res = requests.post(
-            url=url,
-            headers=header,
-            data=body)
+        try:
+            res = requests.post(
+                url=self.url_login_v2,
+                headers=header,
+                data=body)
+            
+            if res.ok:
+                auth = res.json()
+            else:
+                raise Exception(f"Erro {res.status_code} ao autenticar: {res.text}")
+        except Exception as e:
+            logger.error(str(e))
+        finally:
+            pass
+
+        return auth
         
-        if res.ok:
-            return res.json()
-        else:
-            logger.error(f"Erro ao solicitar token: {res.status_code} - {res.text}")
-            return {}
+    def logar_v1(self) -> dict:
+
+        auth:dict={}
+        
+        header:dict = {
+            'token': self.token_snk,
+            'appkey': self.appkey,
+            'username': self.username,
+            'password': self.password
+        }
+
+        try:
+            res = requests.post(
+                url=self.url_login_v1,
+                headers=header
+            )        
+            
+            if res.ok:
+                auth = self.converter_versao(res.json())
+            else:
+                raise Exception(f"Erro {res.status_code} ao autenticar: {res.text}")
+        except Exception as e:
+            logger.error(str(e))
+        finally:
+            pass
+
+        return auth       
+
+    def converter_versao(self, retorno:dict) -> dict:
+
+        return {
+            'access_token': retorno.get('bearerToken'),
+            'expires_in': self.timeout_token_v1,
+            'refresh_expires_in': 0,
+            'token_type': 'Bearer',
+            'not-before-policy': 0,
+            'scope': ''
+        }
+        
 
     def autenticar_arquivo(self) -> str:
 
         token:dict = self.carregar_token_arquivo()
         if not token or datetime.strptime(token.get('expiration_datetime', '1970-01-01 00:00'), '%Y-%m-%d %H:%M') <= datetime.now():
-            token = self.solicitar_token()
+            token = self.logar_v2()
             if token:
                 self.salvar_token_arquivo(token)
                 self.token = token.get('access_token', '')
@@ -147,8 +201,9 @@ class AutenticacaoService():
 
         token:dict = self.carregar_token()
         if not token or not token.get('expires_at') or token.get('expires_at') <= datetime.now():
-            token = self.solicitar_token()
+            token = self.logar_v2() if self.versao == 'v2' else self.logar_v1()
             if token:
+
                 self.salvar_token(token)
                 self.token = token.get('access_token', '')
                 return token.get('access_token', '')
