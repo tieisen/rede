@@ -1,8 +1,6 @@
 from datetime import date
-from src.rede.services.rede import AutenticacaoService as redeAuth
 from src.rede.services.rede import VendasService
-from src.rede.services.sankhya import AutenticacaoService as snkAuth
-from src.rede.services.sankhya import FinanceiroService
+from src.rede.services.sankhya import PagamentoService
 from dotenv import load_dotenv
 from src.rede.utils.log import set_logger
 logger = set_logger(__name__)
@@ -11,56 +9,42 @@ load_dotenv()
 class RotinaService():
 
     def __init__(self):
-        self.snk_auth = snkAuth()
-        self.snk_fin = FinanceiroService()
-        self.rede_auth = redeAuth()
+        self.snk_pgto = PagamentoService()
         self.rede_venda = VendasService()
 
-    def atualizar_dados_financeiro(self,companyNumber:int,dataVendas:date,nsu:int,dados_financeiro:dict) -> dict:
+    def registrar_dados_pagamento(self,companyNumber:int,dataVendas:date,nsu:int) -> dict:
 
-        payload_fin_snk:dict = {}
-        upd_fin_snk:dict = {}
+        payload_pgto:dict = {}
         dados_rede:dict = {}
-        retorno:dict = {"sucesso": False, "mensagem": ""}
-        tkn_snk:str = ''
-        tkn_rede:str = ''
+        retorno:dict = {"sucesso": False, "dados": [], "mensagem": ""}
 
-        logger.info(f"Iniciando atualização de dados financeiro para companyNumber={companyNumber}, dataVendas={dataVendas}, nsu={nsu}")
+        logger.info(f"Registrando dados de pagamento para companyNumber={companyNumber}, dataVendas={dataVendas}, nsu={nsu}")
         try:
-            logger.info("- Autenticando com a API Sankhya...")    
-            tkn_snk = self.snk_auth.autenticar()
-            if not tkn_snk:
+            logger.info("- Autenticando com as APIs...")
+            if not self.snk_pgto.autenticar():
                 raise Exception("Falha na autenticação com a API Sankhya.")
-            
-            logger.info("- Autenticando com a API Rede...")
-            tkn_rede = self.rede_auth.autenticar()
-            if not tkn_rede:
+            if not self.rede_venda.autenticar():
                 raise Exception("Falha na autenticação com a API Rede.")
             
-            logger.info("- Consultando vendas parceladas na API Rede...")
-            dados_rede = self.rede_venda.consultar_vendas_parceladas(token=tkn_rede,companyNumber=companyNumber,startDate=dataVendas,endDate=dataVendas,nsu=nsu)
+            logger.info("- Consultando dados de pagamento na API Rede...")
+            dados_rede = self.rede_venda.consultar_vendas_parceladas(companyNumber=companyNumber,startDate=dataVendas,endDate=dataVendas,nsu=nsu)
             if 'message' in dados_rede:
                 raise Exception(dados_rede.get('message'))
             
-            logger.info("- Formatando payload de atualização para a API Sankhya...")
-            payload_fin_snk = self.snk_fin.formatar_payload_venda(companyNumber=companyNumber, dados_rede=dados_rede,dados_financeiro=dados_financeiro)
-            if not payload_fin_snk:
-                raise Exception("Falha ao formatar payload financeiro.")
-
-            logger.info("- Atualizando dados financeiro na API Sankhya...")
-            upd_fin_snk = self.snk_fin.atualizar(token=tkn_snk, payload=payload_fin_snk)
-            retorno['sucesso'] = upd_fin_snk
-            if not upd_fin_snk:
-                raise Exception("Falha ao atualizar dados financeiro.")
-            logger.info("Dados financeiro atualizados com sucesso!")
+            logger.info("- Formatando payload de retorno...")
+            payload_pgto = self.rede_venda.formatar_payload_consulta_vendas_parceladas()
+            if not payload_pgto:
+                raise Exception("Falha ao formatar payload de registro.")
+            retorno['dados'] = payload_pgto
+            retorno['sucesso'] = True
+            
+            logger.info("- pass")
         except Exception as e:
-            msg = f"Erro ao atualizar dados financeiro: {str(e)}"
+            msg = f"Erro ao registrar dados de pagamento: {str(e)}"
             retorno['mensagem'] = msg
             logger.error(msg)
-            logger.info("token_snk: %s", tkn_snk)
-            logger.info("token_rede: %s", tkn_rede)
             logger.info("dados_rede: %s", dados_rede)
-            logger.info("payload_fin_snk: %s", payload_fin_snk)
+            logger.info("payload_pgto: %s", payload_pgto)
         finally:
             pass
 
@@ -72,59 +56,55 @@ class RotinaService():
         dados_pagamento:list[dict] = []
         lista_salesumnum:list[int] = []
         dados_financeiro:list[dict] = []
-        payload_upd_snk:list[dict] = []
-        upd_fin_snk:dict = {}
+        upd_pgto_snk:dict = {}
         retorno:dict = {"sucesso": False, "mensagem": ""}
-        tkn_snk:str = ''
-        tkn_rede:str = ''
 
         try:
-            tkn_snk = self.snk_auth.autenticar()
-            if not tkn_snk:
+            logger.info("- Autenticando com as APIs...")
+            if not self.rede_venda.autenticar():
                 raise Exception("Falha na autenticação com a API Sankhya.")
-            
-            tkn_rede = self.rede_auth.autenticar()
-            if not tkn_rede:
+            if not self.snk_pgto.autenticar():
                 raise Exception("Falha na autenticação com a API Rede.")
             
+            logger.info("- Buscando dados de pagamento na API Rede...")
             # Busca dados de pagamento na API Rede
-            dados_pagamento_raw = self.rede_venda.consultar_pagamentos_oc(token=tkn_rede,
-                                                                     companyNumber=companyNumber,
-                                                                     startDate=startDate,
-                                                                     endDate=endDate)
+            dados_pagamento_raw = self.rede_venda.consultar_pagamentos_oc(companyNumber=companyNumber,
+                                                                          startDate=startDate,
+                                                                          endDate=endDate)
             if 'message' in dados_pagamento_raw:
                 raise Exception(dados_pagamento_raw.get('message'))
             if not dados_pagamento_raw['content'].get('paymentsCreditOrders'):
                 return {"sucesso": True, "mensagem": f"Nenhum pagamento encontrado para o período especificado ({startDate.strftime('%d/%m/%Y')}-{endDate.strftime('%d/%m/%Y')})."}
             dados_pagamento = dados_pagamento_raw['content']['paymentsCreditOrders']
 
+            logger.info("- Buscando dados financeiros na API Sankhya...")
             # Busca dados financeiros na API Sankhya com base nos salesSummaryNumber dos pagamentos encontrados
             lista_salesumnum = [d.get('saleSummaryNumber') for d in dados_pagamento]
             if not lista_salesumnum:
                 raise Exception("Nenhum saleSummaryNumber encontrado nos pagamentos")
             
-            dados_financeiro = self.snk_fin.buscar(token=tkn_snk,lista=lista_salesumnum)                
+            dados_financeiro = self.snk_pgto.buscar(lista_saleSummaryNumber=lista_salesumnum)                
             if not dados_financeiro:
                 raise Exception("Nenhum registro financeiro encontrado para os salesSummaryNumber")
 
+            logger.info("- Formatando payload de atualização para a API Sankhya...")
             # Formata payload de atualização para a API Sankhya com base nos dados de pagamento e financeiro encontrados
-            payload_upd_snk = self.snk_fin.formatar_payload_pagamento(dados_pagamento=dados_pagamento, dados_financeiro=dados_financeiro)
-            if not payload_upd_snk:
+            if not self.snk_pgto.formatar_payload_pagamento(dados_pagamento=dados_pagamento, dados_financeiro=dados_financeiro):
                 raise Exception("Falha ao formatar payload financeiro.")
 
-            upd_fin_snk = self.snk_fin.atualizar(token=tkn_snk, payload=payload_upd_snk)
-            retorno['sucesso'] = upd_fin_snk
-            if not upd_fin_snk:
+            logger.info("- Atualizando dados financeiros na API Sankhya...")
+            upd_pgto_snk = self.snk_pgto.atualizar()
+            retorno['sucesso'] = upd_pgto_snk
+            if not upd_pgto_snk:
                 raise Exception("Falha ao atualizar dados financeiro.")
+            logger.info("- pass")
         except Exception as e:
             msg = f"Erro ao atualizar dados financeiro: {str(e)}"
             retorno['mensagem'] = msg
             logger.error(msg)
-            logger.info("token_snk: %s", tkn_snk)
-            logger.info("token_rede: %s", tkn_rede)
             logger.info("dados_pagamento_raw: %s", dados_pagamento_raw)
             logger.info("dados_financeiro: %s", dados_financeiro)
-            logger.info("payload_upd_snk: %s", payload_upd_snk)
+            logger.info("payload: %s", self.snk_pgto.payload_pagamento)
         finally:
             pass
 
