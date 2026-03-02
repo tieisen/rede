@@ -56,7 +56,6 @@ class RotinaVendaModel(BaseModel):
     companyNumber:int
     startDate:date
     endDate:date
-    financeiro:list[dict]
     nsu:int=None
     
     @model_validator(mode="after")
@@ -75,13 +74,7 @@ class RotinaVendaModel(BaseModel):
     def validar_companynumber(cls, model):
         if model.companyNumber not in COMPANY_NUMBER_LIST:
             raise ValueError("Company Number inválido")
-        return model        
-    
-    @model_validator(mode="after")
-    def validar_financeiro(cls, model):
-        if ("nufin" not in model.financeiro[0]) or ("desdobramento" not in model.financeiro[0]):
-            raise ValueError("Dicionário financeiro inválido")
-        return model        
+        return model
 
 class RotinaPagamentoModel(BaseModel):
     companyNumber:int
@@ -191,19 +184,18 @@ def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token
         pass
     return res
 
-@router.post("/rotina/atualiza-financeiro", status_code=status.HTTP_200_OK)
-def atualiza_financeiro(body:RotinaVendaModel) -> dict:
+@router.post("/rotina/registra-pagamento", status_code=status.HTTP_200_OK)
+def registra_pagamento(body:RotinaVendaModel) -> dict:
     res:dict={}   
     rotina = RotinaService() 
     try:        
-        res = rotina.atualizar_dados_financeiro(
+        res = rotina.registrar_dados_pagamento(
             companyNumber=body.companyNumber,
             dataVendas=body.startDate,
-            nsu=body.nsu,
-            dados_financeiro=body.financeiro
+            nsu=body.nsu
         )
         if not res.get('sucesso'):
-            raise Exception(res.get('mensagem', 'Falha ao atualizar dados financeiro.'))
+            raise Exception(res.get('mensagem', 'Falha ao registrar dados de pagamento.'))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     finally:
