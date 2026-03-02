@@ -8,7 +8,7 @@ from src.rede.database.database import get_session
 logger = set_logger(__name__)
 load_dotenv()
 
-class AutenticacaoService():
+class AutenticacaoService:
 
     def __init__(self,ambiente: Literal['trn', 'prd']='prd',pacote: Literal['pgto', 'vendas']='vendas',auth:str=''):
         self.sistema = 'rede'
@@ -36,7 +36,7 @@ class AutenticacaoService():
             pass            
         return base64_string
 
-    def validar_ambiente(self) -> dict:
+    def validar_ambiente_auth(self) -> dict:
         dados_ambiente:dict={}
         ambientes_validos = ['trn','prd']
         pacotes_validos = ['pgto','vendas']
@@ -92,27 +92,29 @@ class AutenticacaoService():
 
     def gerar_token(self) -> dict:
         
-        self.dados_ambiente = self.validar_ambiente()
+        self.dados_ambiente = self.validar_ambiente_auth()
         res:requests.Response=None
+        dados:dict={}
+        header:dict={}
+        body:dict={}
 
         try:
             assert isinstance(self.dados_ambiente,dict)
             if not self.dados_ambiente:
                 raise ValueError("Não foi possível validar o ambiente")
-
-            dados:dict={}
+            
             if not self.dados_ambiente:
                 raise ValueError("Não foi possível validar o ambiente")
             
-            header:dict={
+            header={
                 "Authorization": self.dados_ambiente.get('authorization'),
                 "Content-Type": "application/x-www-form-urlencoded"
             }
 
-            body:dict={
+            body={
                 "grant_type":"client_credentials"
             }
-
+            
             res = requests.post(
                 url=self.dados_ambiente.get('url'),
                 headers=header,
@@ -121,10 +123,10 @@ class AutenticacaoService():
         except Exception as e:
             logger.error(f"Erro na requisição do token: {e}")
         finally:
-            if res.ok:
+            if res and res.ok:
                 dados = res.json()
                 self.calcular_expiracao(dados=dados)
-            else:
+            else:           
                 raise ConnectionError(f"Erro {res.status_code}: {res.text}")
         return dados
 
@@ -225,7 +227,7 @@ class AutenticacaoService():
             self.token = token.get('access_token', '')
             return token.get('access_token', '')
 
-    def autenticar(self) -> str:
+    def autenticar(self) -> bool:
         """
         Realiza o processo de autenticação, verificando se o token existente é válido ou se é necessário solicitar um novo token.
             :return str: token de acesso válido para uso nas requisições à API.
@@ -236,21 +238,25 @@ class AutenticacaoService():
             if token:
                 self.salvar_token(token)
                 self.token = token.get('access_token', '')
-                return token.get('access_token', '')
+                return True
             else:
-                return ''
+                return False
         else:
             self.token = token.get('access_token', '')
-            return token.get('access_token', '')
+            return True
 
-class LinkPagamentoService():
+class LinkPagamentoService(AutenticacaoService):
 
     def __init__(self):
-        pass
+        super().__init__()
 
-    def validar_ambiente(self,ambiente: Literal['trn', 'prd']) -> str:
+    def validar_ambiente_link(self,ambiente: Literal['trn', 'prd']=None) -> str:
         ambientes_validos = ['trn','prd']
         url:str=''
+        if not ambiente:
+            ambiente = self.ambiente
+            if not ambiente:
+                raise ValueError("Ambiente não informado")        
 
         try:
             assert isinstance(ambiente,str)
@@ -269,20 +275,24 @@ class LinkPagamentoService():
             pass
         return url
 
-    def consultar_detalhes_link(self,ambiente: Literal['trn', 'prd'],token:str,paymentLinkId:str,companyNumber:str) -> dict:
+    def consultar_detalhes_link(self,paymentLinkId:str,companyNumber:str,ambiente: Literal['trn', 'prd']=None,token:str=None) -> dict:
 
         data:dict={}
         url:str=''
+        header:dict={}
         res:requests.Response=None
 
-        url=self.validar_ambiente(ambiente=ambiente)
+        url=self.validar_ambiente_link(ambiente=ambiente)
         url+=f'/details/{paymentLinkId}'
 
-        header:dict={
+        header={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "Company-number": str(companyNumber)
         }
+        
+        if not token:
+            token = self.token        
 
         try:
             res=requests.get(
@@ -299,16 +309,20 @@ class LinkPagamentoService():
         
         return data
 
-    def criar_link(self,ambiente: Literal['trn', 'prd'],token:str,companyNumber:str,body:dict) -> dict:
+    def criar_link(self,companyNumber:str,body:dict,ambiente: Literal['trn', 'prd']=None,token:str=None) -> dict:
 
         data:dict={}
         url:str=''
+        header:dict={}
         res:requests.Response=None
 
-        url = self.validar_ambiente(ambiente=ambiente)
+        url = self.validar_ambiente_link(ambiente=ambiente)
         url+='/create'
+        
+        if not token:
+            token = self.token        
 
-        header:dict={
+        header={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "Company-number": str(companyNumber)
@@ -330,15 +344,20 @@ class LinkPagamentoService():
         
         return data
 
-class VendasService():
+class VendasService(AutenticacaoService):
 
     def __init__(self):
-        pass
+        super().__init__()
 
-    def validar_ambiente(self,ambiente: Literal['trn', 'prd']) -> str:
+    def validar_ambiente_vendas(self,ambiente: Literal['trn', 'prd']=None) -> str:
 
         ambientes_validos = ['trn','prd']
         url:str=''
+        if not ambiente:
+            ambiente = self.ambiente
+            if not ambiente:
+                raise ValueError("Ambiente não informado")
+            
         if ambiente not in ambientes_validos:
             raise ValueError(f"Ambiente inválido. Escolha entre {ambientes_validos}")
         match ambiente:
@@ -351,19 +370,23 @@ class VendasService():
                 raise ValueError(f"Ambiente inválido:\n>>{ambiente}")           
         return url
 
-    def consultar_vendas_parceladas(self,token:str,companyNumber:int,startDate:date,endDate:date,nsu:int=None,ambiente:Literal['trn', 'prd']='prd') -> dict:
+    def consultar_vendas_parceladas(self,companyNumber:int,startDate:date,endDate:date,nsu:int=None,token:str=None,ambiente:Literal['trn', 'prd']=None) -> dict:
 
         data:dict={}
         url:str=''
+        header:dict={}
         res:requests.Response=None
 
-        url=self.validar_ambiente(ambiente=ambiente)
+        url=self.validar_ambiente_vendas(ambiente=ambiente)
         if nsu:
             url+=f"/v2/payments/installments/{companyNumber}?saleDate={startDate.strftime('%Y-%m-%d')}&nsu={nsu}"
         else:
             url+=f"/v1/sales/installments?parentCompanyNumber={companyNumber}&subsidiaries={companyNumber}&startDate={startDate.strftime('%Y-%m-%d')}&endDate={endDate.strftime('%Y-%m-%d')}"
 
-        header:dict={
+        if not token:
+            token = self.token
+
+        header={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
@@ -379,6 +402,7 @@ class VendasService():
             match res.status_code:
                 case 200:
                     data = res.json()
+                    self.dados_vendas_parceladas = data.get("content",{}).get("installments",[])
                 case 204:
                     data = {
                         "message": f"A consulta não retornou dados. NSU: {nsu}. Data: {startDate.strftime('%d/%m/%Y')}"
@@ -387,16 +411,20 @@ class VendasService():
                     raise ConnectionError(f"Erro {res.status_code} na consulta de vendas parceladas: {res.text}")
         return data
     
-    def consultar_pagamentos_oc(self,token:str,companyNumber:int,startDate:date,endDate:date,ambiente:Literal['trn', 'prd']='prd') -> dict:
+    def consultar_pagamentos_oc(self,companyNumber:int,startDate:date,endDate:date,token:str=None,ambiente:Literal['trn', 'prd']=None) -> dict:
 
         data:dict={}
         url:str=''
+        header:dict={}
         res:requests.Response=None    
 
-        url=self.validar_ambiente(ambiente=ambiente)
+        url=self.validar_ambiente_vendas(ambiente=ambiente)
         url+=f'/v1/payments/credit-orders?parentCompanyNumber={companyNumber}&subsidiaries={companyNumber}&startDate={startDate.strftime('%Y-%m-%d')}&endDate={endDate.strftime('%Y-%m-%d')}'
+        
+        if not token:
+            token = self.token
 
-        header:dict={
+        header={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
@@ -420,16 +448,20 @@ class VendasService():
         
         return data
 
-    def consultar_pagamentos_id(self,token:str,companyNumber:int,paymentId:str,ambiente:Literal['trn', 'prd']='prd') -> dict:
+    def consultar_pagamentos_id(self,companyNumber:int,paymentId:str,token:str=None,ambiente:Literal['trn', 'prd']=None) -> dict:
 
         data:dict={}
         url:str=''
+        header:dict={}
         res:requests.Response=None
 
-        url=self.validar_ambiente(ambiente=ambiente)
+        url=self.validar_ambiente_vendas(ambiente=ambiente)
         url+=f'/v1/payments/{companyNumber}/{paymentId}'
 
-        header:dict={
+        if not token:
+            token = self.token
+
+        header={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
@@ -452,3 +484,23 @@ class VendasService():
                 raise ConnectionError(f"Erro {res.status_code} na consulta de pagamentos por ID: {res.text}")
         
         return data
+    
+    def formatar_payload_consulta_vendas_parceladas(self,dados_vendas:dict=None) -> list[dict]:
+        
+        vendas:list[dict] = dados_vendas.get("content",{}).get("installments",[]) if dados_vendas else self.dados_vendas_parceladas
+        try:            
+            return [
+                {
+                    "amount": item['amountInfo'].get("amount"),
+                    "brand": item.get("brand"),
+                    "expirationDate": datetime.strptime(item.get("expirationDate"), '%Y-%m-%d').strftime('%d/%m/%Y'),
+                    "installmentNumber": item.get("installmentNumber"),
+                    "mdrAmount": item.get("mdrAmount"),
+                    "mdrFee": item.get("mdrFee"),
+                    "netAmount": item['amountInfo'].get("netAmount")
+                }
+                for i, item in enumerate(vendas)
+            ]
+        except Exception as e:
+            logger.error(f"Erro ao formatar payload de vendas parceladas: {e}")
+            return []    
