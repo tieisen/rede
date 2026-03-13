@@ -9,68 +9,27 @@ load_dotenv()
 
 class AutenticacaoService:
 
-    def __init__(self, versao:str='v1'):
-        self.versao = versao
+    def __init__(self):
         self.sistema = 'sankhya'
-        self.caminho_arquivo_token = os.getenv("PATH_TOKEN_SNK", "")
-        self.x_token = os.getenv("X_TOKEN", "")
-        self.client_id = os.getenv("CLIENT_ID", "")
-        self.client_secret = os.getenv("CLIENT_SECRET", "")
-        self.token = None
-        self.token_snk = os.getenv("TOKEN","")
-        self.appkey = os.getenv("APP_KEY","")
-        self.username = os.getenv("USERNAME_API","")
-        self.password = os.getenv("PASSWORD","")
-        self.timeout_token_v1 = int(os.getenv("TIMEOUT_TOKEN_MIN")) * 60
-        self.url_login_v1 = os.getenv("URL_V1","")
-        self.url_login_v2 = os.getenv("URL_V2","")
+        self.url = os.getenv('URL_AUTH_SNK')
+        self.x_token = os.getenv('XTOKEN')
+        self.app_id = os.getenv('APP_ID')
 
-        if not any([self.caminho_arquivo_token, self.x_token, self.client_id, self.client_secret]):
+        if not any([self.url, self.x_token, self.app_id]):
             logger.critical("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
             raise Exception("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
 
-    def salvar_token_arquivo(self, token: dict) -> bool:
-        
-        def calcular_expiracao(segundos: int) -> str:
-            try:
-                expiracao = datetime.now() + timedelta(seconds=(segundos-60))
-                return expiracao.strftime('%Y-%m-%d %H:%M')
-            except Exception as e:
-                logger.error(f"Erro ao calcular expiração do token: {e}")
-                return ""
-
-        status:bool = False
-        try:
-            token['expiration_datetime'] = calcular_expiracao(token.get('expires_in', 0))
-            with open(self.caminho_arquivo_token, 'w') as arquivo:
-                arquivo.write(json.dumps(token,ensure_ascii=False, indent=4))
-            status = True
-        except Exception as e:
-            logger.error(f"Erro ao salvar o token no arquivo: {e}")
-        finally:
-            pass
-        return status
-
     def salvar_token(self, token: dict) -> bool:
         
-        def calcular_expiracao(segundos: int) -> str:
-            try:
-                expiracao = datetime.now() + timedelta(seconds=(segundos-60))
-                return expiracao.strftime('%Y-%m-%d %H:%M')
-            except Exception as e:
-                logger.error(f"Erro ao calcular expiração do token: {e}")
-                return ""
-
         status:bool = False
         with get_session() as session:
             token_servicedb = TokenService(db=session)
-            try:
-                token['expiration_datetime'] = calcular_expiracao(token.get('expires_in', 0))
+            try:                
                 token_servicedb.salvar_token(
                     sistema=self.sistema,
-                    access_token=token.get('access_token', ''),
-                    refresh_token=token.get('refresh_token', ''),
-                    expires_at=datetime.strptime(token['expiration_datetime'], '%Y-%m-%d %H:%M') if token.get('expiration_datetime') else None
+                    access_token=token.get('token',''),
+                    refresh_token='',
+                    expires_at=datetime.strptime(token.get('dhExpiracaoToken',''), "%Y-%m-%dT%H:%M:%S.%f") if token.get('dhExpiracaoToken') else None
                 )
                 status = True
             except Exception as e:
@@ -78,20 +37,6 @@ class AutenticacaoService:
             finally:
                 session.close()
         return status
-
-    def carregar_token_arquivo(self) -> dict:
-
-        try:
-            if os.path.exists(self.caminho_arquivo_token):
-                with open(self.caminho_arquivo_token, 'r') as arquivo:
-                    token = json.loads(arquivo.read())
-                    return token
-            else:
-                logger.warning("Arquivo de token não encontrado.")
-                return {}
-        except Exception as e:
-            logger.error(f"Erro ao carregar o token do arquivo: {e}")
-            return {}
 
     def carregar_token(self) -> dict:
         token:dict = {}
@@ -109,106 +54,48 @@ class AutenticacaoService:
                 session.close()
         return token
 
-    def logar_v2(self) -> dict:
+    def logar(self) -> dict:
 
-        auth:dict={}
+        auth:dict=''
 
-        header = {
-            'X-Token':self.x_token,
-            'accept':'application/x-www-form-urlencoded',
-            'content-type':'application/x-www-form-urlencoded'
+        # Header da requisição
+        header:dict = {
+            'xToken': self.x_token
         }
-
-        body = {
-            'grant_type':'client_credentials',
-            'client_id':self.client_id,
-            'client_secret':self.client_secret
-        }
+        
+        url:str = self.url+f"/{self.app_id}"
 
         try:
             res = requests.post(
-                url=self.url_login_v2,
-                headers=header,
-                data=body)
+                url=url,
+                headers=header
+            )
             
-            if res.ok:
-                auth = res.json()
-            else:
-                raise Exception(f"Erro {res.status_code} ao autenticar: {res.text}")
+            if not res.ok:
+                raise Exception(f"Erro {res.status_code} ao autenticar: {res.get("mensagem")}")
+            
+            auth = res.json()
+                
         except Exception as e:
             logger.error(str(e))
         finally:
             pass
 
         return auth
-        
-    def logar_v1(self) -> dict:
-
-        auth:dict={}
-        
-        header:dict = {
-            'token': self.token_snk,
-            'appkey': self.appkey,
-            'username': self.username,
-            'password': self.password
-        }
-
-        try:
-            res = requests.post(
-                url=self.url_login_v1,
-                headers=header
-            )        
-            
-            if res.ok:
-                auth = self.converter_versao(res.json())
-            else:
-                raise Exception(f"Erro {res.status_code} ao autenticar: {res.text}")
-        except Exception as e:
-            logger.error(str(e))
-        finally:
-            pass
-
-        return auth       
-
-    def converter_versao(self, retorno:dict) -> dict:
-
-        return {
-            'access_token': retorno.get('bearerToken'),
-            'expires_in': self.timeout_token_v1,
-            'refresh_expires_in': 0,
-            'token_type': 'Bearer',
-            'not-before-policy': 0,
-            'scope': ''
-        }
-        
-    def autenticar_arquivo(self) -> str:
-
-        token:dict = self.carregar_token_arquivo()
-        if not token or datetime.strptime(token.get('expiration_datetime', '1970-01-01 00:00'), '%Y-%m-%d %H:%M') <= datetime.now():
-            token = self.logar_v2()
-            if token:
-                self.salvar_token_arquivo(token)
-                self.token = token.get('access_token', '')
-                return token.get('access_token', '')
-            else:
-                return ''
-        else:
-            self.token = token.get('access_token', '')
-            return token.get('access_token', '')
 
     def autenticar(self) -> bool:
 
         token:dict = self.carregar_token()
         if not token or not token.get('expires_at') or token.get('expires_at') <= datetime.now():
-            token = self.logar_v2() if self.versao == 'v2' else self.logar_v1()
+            token = self.logar()
             if token:
                 self.salvar_token(token)
-                self.token = token.get('access_token', '')
+                self.token = token.get('token', '')
                 return True
             else:
                 return False
         else:
-            self.token = token.get('access_token', '')
+            self.token = token.get('token', '')
             return True
 
 class FinanceiroService(AutenticacaoService):
