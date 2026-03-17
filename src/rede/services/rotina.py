@@ -76,9 +76,11 @@ class RotinaService():
             if not lista_salesumnum:
                 raise Exception("Nenhum saleSummaryNumber encontrado nos pagamentos")
             
+            logger.info(f"Buscando dados financeiros para os seguintes saleSummaryNumber: {', '.join(map(str, lista_salesumnum))}")
+
             dados_financeiro = self.snk_pgto.buscar(lista_saleSummaryNumber=lista_salesumnum)                
             if not dados_financeiro:
-                raise Exception("Nenhum registro financeiro encontrado para os salesSummaryNumber")
+                raise Exception("Algumas transações financeiras não foram encontradas no Sankhya. NSUs: "+', '.join(map(str, lista_salesumnum)))
 
             # Formata payload de atualização para a API Sankhya com base nos dados de pagamento e financeiro encontrados
             if not self.snk_pgto.formatar_payload_pagamento(dados_pagamento=dados_pagamento, dados_financeiro=dados_financeiro):
