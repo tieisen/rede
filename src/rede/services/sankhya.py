@@ -1,5 +1,5 @@
-import os, requests, json
-from datetime import datetime, timedelta
+import os, requests
+from datetime import datetime
 from dotenv import load_dotenv
 from src.rede.utils.log import set_logger
 from src.rede.services.token import TokenService
@@ -698,9 +698,7 @@ class PagamentoService(AutenticacaoService):
         }
         headers = { "Authorization":f"Bearer {token}" }
 
-        logger.info(f"Enviando headers de atualização para a API Sankhya: {headers}")
-        logger.info(f"Enviando payload de atualização para a API Sankhya: {payload_send}")        
-
+        logger.info(f"Enviando payload de atualização para a API Sankhya: {payload_send}")
         try:
             res = requests.post(
                 url=url,
