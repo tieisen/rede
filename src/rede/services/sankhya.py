@@ -1,4 +1,5 @@
-import os, requests, json
+import os, requests
+from functools import wraps
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from src.rede.utils.log import set_logger
@@ -19,17 +20,19 @@ class AutenticacaoService:
             logger.critical("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
             raise Exception("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
 
-    def salvar_token(self, token: dict) -> bool:
-        
+    def salvarToken(self, dadosToken: dict) -> bool:        
         status:bool = False
+        token:str = dadosToken.get('token')
+        expire_date:datetime = datetime.strptime(dadosToken.get('dhExpiracaoToken',''), "%Y-%m-%dT%H:%M:%S.%f")
+        expire_date_ajustado = expire_date - timedelta(seconds=60)
+        
         with get_session() as session:
             token_servicedb = TokenService(db=session)
             try:                
-                token_servicedb.salvar_token(
+                token_servicedb.salvarToken(
                     sistema=self.sistema,
-                    access_token=token.get('token',''),
-                    refresh_token='',
-                    expires_at=datetime.strptime(token.get('dhExpiracaoToken',''), "%Y-%m-%dT%H:%M:%S.%f") if token.get('dhExpiracaoToken') else None
+                    accessToken=token,
+                    expiresAt=expire_date_ajustado
                 )
                 status = True
             except Exception as e:
@@ -38,12 +41,12 @@ class AutenticacaoService:
                 session.close()
         return status
 
-    def carregar_token(self) -> dict:
+    def carregarToken(self) -> dict:
         token:dict = {}
         with get_session() as session:
             token_servicedb = TokenService(db=session)
             try:
-                token_db = token_servicedb.obter_token(sistema=self.sistema)
+                token_db = token_servicedb.obterToken(sistema=self.sistema)
                 if token_db:
                     token = token_db.__dict__
                 else:
@@ -83,25 +86,65 @@ class AutenticacaoService:
 
         return auth
 
-    def autenticar(self) -> bool:
+    def validarToken(self) -> bool:
+        status:bool = False
+        self.token:str = ''
+        agora:datetime = datetime.now().replace(microsecond=0)
+        expiracao_token:datetime = None        
+        dados_token:dict = self.carregarToken()
 
-        token:dict = self.carregar_token()
-        if not token or not token.get('expires_at') or token.get('expires_at') <= datetime.now():
-            token = self.logar()
-            if token:
-                self.salvar_token(token)
-                self.token = token.get('token', '')
-                return True
-            else:
-                return False
-        else:
-            self.token = token.get('token', '')
-            return True
+        if not dados_token:
+            logger.error(f"Dados do token não encontrado")
+            return status
+        
+        expiracao_token = dados_token.get('expires_at').replace(microsecond=0) if dados_token.get('expires_at') else None
+        self.token = dados_token.get('access_token')        
+        
+        if (not self.token) or (not expiracao_token):
+            logger.error(f"Token não encontrado")
+            return status
+
+        if expiracao_token <= agora:
+            return status
+        
+        status = True
+        return status
+    
+    def atualizarToken(self) -> bool:        
+        status:bool = False
+        dados_token:dict = self.logar()
+        if dados_token:
+            self.token = dados_token.get('token', '')
+            status = self.salvarToken(dados_token)            
+        return status
+
+    def autenticar(self) -> str:
+        if not self.validarToken():
+            self.atualizarToken()
+        return self.token
+
+    def accessToken(func):
+        """
+        Executa rotina de autenticacao
+            :param func: função que recebe o decorador
+        """        
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            try:        
+                token = AutenticacaoService().autenticar()                
+                self.token = token
+                if not self.token:
+                    raise ValueError("Não foi possível autenticar.")
+                return func(self, *args, **kwargs)
+            finally:
+                self.token = None
+        return wrapper  
 
 class FinanceiroService(AutenticacaoService):
 
     def __init__(self):
         super().__init__()
+        self.token = None
         self.fields:list = [
                     "AD_REDE_AMOUNT",
                     "AD_REDE_EXPIRATIONDATE",
@@ -194,7 +237,8 @@ class FinanceiroService(AutenticacaoService):
                     pass
                 return new_res
 
-    def buscar(self,token:str=None,saleSummaryNumber:int=None,lista:list=None) -> dict:
+    @AutenticacaoService.accessToken
+    def buscar(self,saleSummaryNumber:int=None,lista:list=None) -> dict:
 
         def monta_expressao(saleSummaryNumber:int=None,lista:list=None):
             nonlocal criteria
@@ -235,9 +279,6 @@ class FinanceiroService(AutenticacaoService):
         criteria:dict={}
         payload:dict={}
 
-        if not token:
-            token = self.token
-
         try:
             saleSummaryNumber = int(saleSummaryNumber) if saleSummaryNumber else None
             lista = [int(i) for i in lista] if lista else None
@@ -264,7 +305,7 @@ class FinanceiroService(AutenticacaoService):
 
             res = requests.get(
                 url=url,
-                headers={ "Authorization":f"Bearer {token}" },
+                headers={ "Authorization":f"Bearer {self.token}" },
                 json=payload
             )
             
@@ -278,13 +319,12 @@ class FinanceiroService(AutenticacaoService):
             pass
 
         return dados_financeiro
-        
-    def atualizar(self,payload:list[dict],token:str=None) -> bool:
+
+    @AutenticacaoService.accessToken
+    def atualizar(self,payload:list[dict]) -> bool:
         
         sucesso:bool = False
         url:str = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=DatasetSP.save&outputType=json'        
-        if not token:
-            token = self.token        
         payload_send = {
             "serviceName":"DatasetSP.save",
             "requestBody":{
@@ -294,7 +334,7 @@ class FinanceiroService(AutenticacaoService):
                 "records": payload
             }
         }
-        headers = { "Authorization":f"Bearer {token}" }
+        headers = { "Authorization":f"Bearer {self.token}" }
 
         logger.info(f"Enviando headers de atualização para a API Sankhya: {headers}")
         logger.info(f"Enviando payload de atualização para a API Sankhya: {payload_send}")        
@@ -311,7 +351,7 @@ class FinanceiroService(AutenticacaoService):
                 raise Exception(f"{res.status_code} - {res.text}")
         except Exception as e:
             logger.error(f"Erro ao atualizar dados financeiro: {e}")
-            logger.info("headers: %s", { "Authorization":f"Bearer {token}" })
+            logger.info("headers: %s", { "Authorization":f"Bearer {self.token}" })
             logger.info("payload: %s", payload_send)
         finally:
             pass
@@ -372,6 +412,7 @@ class FinanceiroService(AutenticacaoService):
 class PagamentoService(AutenticacaoService):
 
     def __init__(self):
+        self.token = None        
         super().__init__()
         self.fields:list = [
                     "AMOUNT",
@@ -386,7 +427,7 @@ class PagamentoService(AutenticacaoService):
         self.payload_registro:list[dict] = []
         self.payload_pagamento:list[dict] = []
 
-    def formatar_retorno(self, res:dict) -> list:
+    def formatarRetorno(self, res:dict) -> list:
 
         # RETORNO DE CONSULTA PELO DBEXPLORER
         if res.get('serviceName') == 'DbExplorerSP.executeQuery':
@@ -464,7 +505,7 @@ class PagamentoService(AutenticacaoService):
                     pass
                 return new_res
 
-    def formatar_payload_registro(self,dados_rede:dict,dados_sankhya:dict) -> bool:
+    def formatarPayloadRegistro(self,dadosRede:dict,dadosSankhya:dict) -> bool:
 
         matching:dict = {}
         payload_upd_snk:list[dict] = []
@@ -472,8 +513,8 @@ class PagamentoService(AutenticacaoService):
 
         try:
             # Formata payload de atualização para a API Sankhya
-            for i, item in enumerate(dados_sankhya):
-                matching = next((f for f in dados_rede.get("content",{}).get("installments",[]) if int(f.get("installmentNumber")) == int(item.get("desdobramento"))), None)
+            for i, item in enumerate(dadosSankhya):
+                matching = next((f for f in dadosRede.get("content",{}).get("installments",[]) if int(f.get("installmentNumber")) == int(item.get("desdobramento"))), None)
                 if matching:
                     update = {
                         "pk":{
@@ -495,7 +536,7 @@ class PagamentoService(AutenticacaoService):
             logger.error(f"Erro ao formatar payload de registro: {e}")
             return False
 
-    def formatar_payload_pagamento(self,dados_pagamento:dict,dados_financeiro:dict) -> bool:
+    def formatarPayloadPagamento(self,dadosPagamento:dict,dadosFinanceiro:dict) -> bool:
 
         pagamento:dict = {}
         matching_financeiro:dict = {}
@@ -504,8 +545,8 @@ class PagamentoService(AutenticacaoService):
 
         try:
             # Formata payload de atualização para a API Sankhya
-            for i, pagamento in enumerate(dados_pagamento):
-                matching_financeiro = next((f for f in dados_financeiro if int(f.get("salesumnum")) == pagamento.get("saleSummaryNumber") and datetime.strptime(f.get('expirationdate'),'%d/%m/%Y').strftime('%Y-%m-%d') == pagamento.get("paymentDate")), None)
+            for i, pagamento in enumerate(dadosPagamento):
+                matching_financeiro = next((f for f in dadosFinanceiro if int(f.get("salesumnum")) == pagamento.get("saleSummaryNumber") and datetime.strptime(f.get('expirationdate'),'%d/%m/%Y').strftime('%Y-%m-%d') == pagamento.get("paymentDate")), None)
                 if matching_financeiro:
                     update = {
                         "pk": {
@@ -523,9 +564,10 @@ class PagamentoService(AutenticacaoService):
             logger.error(f"Erro ao formatar payload de pagamento: {e}")
             return False
 
-    def buscar(self,token:str=None,saleSummaryNumber:int=None,nsu:int=None,lista_saleSummaryNumber:list=None,lista_nsu:list=None) -> dict:
+    @AutenticacaoService.accessToken
+    def buscar(self,saleSummaryNumber:int=None,nsu:int=None,lista_saleSummaryNumber:list=None,lista_nsu:list=None) -> dict:
 
-        def valida_parametros(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu):
+        def validaParametros(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu):
             saleSummaryNumber = int(saleSummaryNumber) if saleSummaryNumber else None
             nsu = int(nsu) if nsu else None
             lista_saleSummaryNumber = [int(i) for i in lista_saleSummaryNumber] if lista_saleSummaryNumber else None
@@ -534,7 +576,7 @@ class PagamentoService(AutenticacaoService):
             if not any([saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu]):
                 raise ValueError("Nenhum critério de busca fornecido.")                
 
-        def monta_expressao(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu):
+        def montaExpressao(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu):
             nonlocal criteria
             
             try:
@@ -589,11 +631,8 @@ class PagamentoService(AutenticacaoService):
         criteria:dict={}
         payload:dict={}
 
-        if not token:
-            token = self.token
-
-        valida_parametros(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu)
-        monta_expressao(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu)
+        validaParametros(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu)
+        montaExpressao(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu)
 
         try:
             payload = {
@@ -615,12 +654,12 @@ class PagamentoService(AutenticacaoService):
 
             res = requests.get(
                 url=url,
-                headers={ "Authorization":f"Bearer {token}" },
+                headers={ "Authorization":f"Bearer {self.token}" },
                 json=payload
             )
             
             if res.ok and res.json().get('status') in ['0','1']:
-                dados_pagamento = self.formatar_retorno(res.json())
+                dados_pagamento = self.formatarRetorno(res.json())
             else:
                 raise Exception(f"{res.status_code} - {res.text}")
         except Exception as e:
@@ -630,7 +669,8 @@ class PagamentoService(AutenticacaoService):
 
         return dados_pagamento
 
-    def enviar(self,token:str=None,payload:list[dict]=None) -> bool:
+    @AutenticacaoService.accessToken
+    def enviar(self,payload:list[dict]=None) -> bool:
         
         sucesso:bool = False
         url:str = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=DatasetSP.save&outputType=json'       
@@ -638,9 +678,6 @@ class PagamentoService(AutenticacaoService):
             payload = self.payload_registro
             if not payload:
                 return False
-
-        if not token:
-            token = self.token
 
         payload_send = {
             "serviceName":"DatasetSP.save",
@@ -651,7 +688,7 @@ class PagamentoService(AutenticacaoService):
                 "records": payload
             }
         }
-        headers = { "Authorization":f"Bearer {token}" }
+        headers = { "Authorization":f"Bearer {self.token}" }
 
         logger.info(f"Enviando headers de registro para a API Sankhya: {headers}")
         logger.info(f"Enviando payload de registro para a API Sankhya: {payload_send}")        
@@ -668,14 +705,15 @@ class PagamentoService(AutenticacaoService):
                 raise Exception(f"{res.status_code} - {res.text}")
         except Exception as e:
             logger.error(f"Erro ao enviar dados pagamento: {e}")
-            logger.info("headers: %s", { "Authorization":f"Bearer {token}" })
+            logger.info("headers: %s", { "Authorization":f"Bearer {self.token}" })
             logger.info("payload: %s", payload_send)
         finally:
             pass
 
         return sucesso
     
-    def atualizar(self,token:str=None,payload:list[dict]=None) -> bool:
+    @AutenticacaoService.accessToken
+    def atualizar(self,payload:list[dict]=None) -> bool:
         
         sucesso:bool = False
         url:str = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=DatasetSP.save&outputType=json'        
@@ -683,9 +721,6 @@ class PagamentoService(AutenticacaoService):
             payload = self.payload_pagamento
             if not payload:
                 return False
-
-        if not token:
-            token = self.token
                     
         payload_send = {
             "serviceName":"DatasetSP.save",
@@ -696,7 +731,7 @@ class PagamentoService(AutenticacaoService):
                 "records": payload
             }
         }
-        headers = { "Authorization":f"Bearer {token}" }
+        headers = { "Authorization":f"Bearer {self.token}" }
 
         logger.info(f"Enviando headers de atualização para a API Sankhya: {headers}")
         logger.info(f"Enviando payload de atualização para a API Sankhya: {payload_send}")        
@@ -713,7 +748,7 @@ class PagamentoService(AutenticacaoService):
                 raise Exception(f"{res.status_code} - {res.text}")
         except Exception as e:
             logger.error(f"Erro ao atualizar dados do pagamento: {e}")
-            logger.info("headers: %s", { "Authorization":f"Bearer {token}" })
+            logger.info("headers: %s", { "Authorization":f"Bearer {self.token}" })
             logger.info("payload: %s", payload_send)
         finally:
             pass
