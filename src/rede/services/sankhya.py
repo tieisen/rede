@@ -538,23 +538,23 @@ class PagamentoService(AutenticacaoService):
 
     def formatarPayloadPagamento(self,dadosPagamento:dict,dadosFinanceiro:dict) -> bool:
 
-        pagamento:dict = {}
-        matching_financeiro:dict = {}
+        financeiro:dict = {}
+        matching_pagamento:dict = {}
         payload_upd_snk:list[dict] = []
         update:dict = {}       
 
         try:
             # Formata payload de atualização para a API Sankhya
-            for i, pagamento in enumerate(dadosPagamento):
-                matching_financeiro = next((f for f in dadosFinanceiro if int(f.get("salesumnum")) == pagamento.get("saleSummaryNumber") and datetime.strptime(f.get('expirationdate'),'%d/%m/%Y').strftime('%Y-%m-%d') == pagamento.get("paymentDate")), None)
-                if matching_financeiro:
+            for i, financeiro in enumerate(dadosFinanceiro):
+                matching_pagamento = next((p for p in dadosPagamento if int(financeiro.get("salesumnum")) == p.get("saleSummaryNumber") and datetime.strptime(financeiro.get('expirationdate'),'%d/%m/%Y').strftime('%Y-%m-%d') == p.get("paymentDate")), None)
+                if matching_pagamento:
                     update = {
                         "pk": {
-                            "ID": matching_financeiro.get("id")
+                            "ID": financeiro.get("id")
                         },
                         "values": {
-                            "6": datetime.strptime(pagamento.get("paymentDate"), '%Y-%m-%d').strftime('%d/%m/%Y'),
-                            "7": pagamento.get("paymentId")
+                            "6": datetime.strptime(matching_pagamento.get("paymentDate"), '%Y-%m-%d').strftime('%d/%m/%Y'),
+                            "7": matching_pagamento.get("paymentId")
                         }
                     }
                     payload_upd_snk.append(update)
