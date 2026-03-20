@@ -24,13 +24,13 @@ SessionLocal = sessionmaker(
     expire_on_commit=False
 )
 
-def verificar_criar_banco():
+def verificarCriarBanco():
     if not DB_PATH.exists():
         print("Criando banco SQLite de tokens...")
         DB_PATH.touch()
 
 
-def criar_tabelas():
+def criarTabelas():
     from . import models  # registra models
     Base.metadata.create_all(bind=engine)
 

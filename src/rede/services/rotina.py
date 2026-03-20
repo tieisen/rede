@@ -12,24 +12,21 @@ class RotinaService():
         self.snk_pgto = PagamentoService()
         self.rede_venda = VendasService()
 
-    def registrar_dados_pagamento(self,companyNumber:int,dataVendas:date,nsu:int) -> dict:
+    def registrarDadosPagamento(self,companyNumber:int,dataVendas:date,nsu:int) -> dict:
 
         payload_pgto:dict = {}
         dados_rede:dict = {}
         retorno:dict = {"sucesso": False, "dados": [], "mensagem": ""}
 
         logger.info(f"Registrando dados de pagamento para companyNumber={companyNumber}, dataVendas={dataVendas}, nsu={nsu}")
-        try:
-            if not self.snk_pgto.autenticar():
-                raise Exception("Falha na autenticação com a API Sankhya.")
-            if not self.rede_venda.autenticar():
-                raise Exception("Falha na autenticação com a API Rede.")
-            
-            dados_rede = self.rede_venda.consultar_vendas_parceladas(companyNumber=companyNumber,startDate=dataVendas,endDate=dataVendas,nsu=nsu)
+        try:            
+            logger.info("- Consultando dados de pagamento na API Rede...")
+            dados_rede = self.rede_venda.consultarVendasParceladas(companyNumber=companyNumber,startDate=dataVendas,endDate=dataVendas,nsu=nsu)
             if 'message' in dados_rede:
                 raise Exception(dados_rede.get('message'))
             
-            payload_pgto = self.rede_venda.formatar_payload_consulta_vendas_parceladas()
+            logger.info("- Formatando payload de retorno...")
+            payload_pgto = self.rede_venda.formatarPayloadConsultaVendasParceladas()
             if not payload_pgto:
                 raise Exception("Falha ao formatar payload de registro.")
             retorno['dados'] = payload_pgto
@@ -46,7 +43,7 @@ class RotinaService():
 
         return retorno
 
-    def atualizar_dados_pagamento(self,companyNumber:int,startDate:date,endDate:date) -> dict:
+    def atualizarDadosPagamento(self,companyNumber:int,startDate:date,endDate:date) -> dict:
 
         dados_pagamento_raw:list[dict] = []
         dados_pagamento:list[dict] = []
@@ -55,16 +52,12 @@ class RotinaService():
         upd_pgto_snk:dict = {}
         retorno:dict = {"sucesso": False, "mensagem": ""}
 
-        try:
-            if not self.rede_venda.autenticar():
-                raise Exception("Falha na autenticação com a API Rede.")
-            if not self.snk_pgto.autenticar():
-                raise Exception("Falha na autenticação com a API Sankhya.")
-
+        try:            
+            logger.info("- Buscando dados de pagamento na API Rede...")
             # Busca dados de pagamento na API Rede
-            dados_pagamento_raw = self.rede_venda.consultar_pagamentos_oc(companyNumber=companyNumber,
-                                                                          startDate=startDate,
-                                                                          endDate=endDate)
+            dados_pagamento_raw = self.rede_venda.consultarPagamentosOc(companyNumber=companyNumber,
+                                                                        startDate=startDate,
+                                                                        endDate=endDate)
             if 'message' in dados_pagamento_raw:
                 raise Exception(dados_pagamento_raw.get('message'))
             if not dados_pagamento_raw['content'].get('paymentsCreditOrders'):
@@ -83,7 +76,7 @@ class RotinaService():
                 raise Exception("Algumas transações financeiras não foram encontradas no Sankhya. NSUs: "+', '.join(map(str, lista_salesumnum)))
 
             # Formata payload de atualização para a API Sankhya com base nos dados de pagamento e financeiro encontrados
-            if not self.snk_pgto.formatar_payload_pagamento(dados_pagamento=dados_pagamento, dados_financeiro=dados_financeiro):
+            if not self.snk_pgto.formatarPayloadPagamento(dadosPagamento=dados_pagamento, dadosFinanceiro=dados_financeiro):
                 raise Exception("Falha ao formatar payload financeiro.")
 
             upd_pgto_snk = self.snk_pgto.atualizar()

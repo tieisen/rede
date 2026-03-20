@@ -114,8 +114,8 @@ def info():
         "version": "1.0.0"
     }
 
-@router.post("/auth/generate-token", status_code=status.HTTP_200_OK)
-def gerar_token(body:AutenticacaoModel) -> dict:
+@router.post("/auth/login", status_code=status.HTTP_200_OK)
+def logar(body:AutenticacaoModel) -> dict:
     res:dict={}
     auth = AutenticacaoService(
         ambiente=body.ambiente,
@@ -123,7 +123,7 @@ def gerar_token(body:AutenticacaoModel) -> dict:
         auth=body.auth
     )
     try:
-        res = auth.gerar_token()
+        res = auth.logar()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     finally:
@@ -131,13 +131,12 @@ def gerar_token(body:AutenticacaoModel) -> dict:
     return res
 
 @router.post("/vendas/consulta-parcelas", status_code=status.HTTP_200_OK)
-def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) -> dict:
+def consultaParcelas(body:VendasModel, token:str=Depends(validar_token)) -> dict:
     res:dict={}
     vendas = VendasService()
     try:
-        res = vendas.consultar_vendas_parceladas(
+        res = vendas.consultarVendasParceladas(
             ambiente=body.ambiente,
-            token=token,
             companyNumber=body.companyNumber,
             nsu=body.nsu,
             startDate=body.startDate,
@@ -150,13 +149,12 @@ def consulta_parcelas(body:VendasModel, token:str=Depends(validar_token)) -> dic
     return res
 
 @router.post("/vendas/consulta-pgto-oc", status_code=status.HTTP_200_OK)
-def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_token)) -> dict:
+def consultaPagamentosPorOc(body:VendasModel, token:str=Depends(validar_token)) -> dict:
     res:dict={}
     vendas = VendasService()        
     try:
-        res = vendas.consultar_pagamentos_oc(
+        res = vendas.consultarPagamentosOc(
             ambiente=body.ambiente,
-            token=token,
             companyNumber=body.companyNumber,
             startDate=body.startDate,
             endDate=body.endDate
@@ -168,13 +166,12 @@ def consulta_pagamentos_oc(body:VendasModel, token:str=Depends(validar_token)) -
     return res
 
 @router.post("/vendas/consulta-pgto-id", status_code=status.HTTP_200_OK)
-def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token)) -> dict:
+def consultaPagamentosPorId(body:VendasPgtoId, token: str = Depends(validar_token)) -> dict:
     res:dict={}
     vendas = VendasService()        
     try:
-        res = vendas.consultar_pagamentos_id(
+        res = vendas.consultarPagamentosId(
             ambiente=body.ambiente,
-            token=token,
             companyNumber=body.companyNumber,
             paymentId=body.paymentId
         )
@@ -185,11 +182,11 @@ def consulta_pagamentos_id(body:VendasPgtoId, token: str = Depends(validar_token
     return res
 
 @router.post("/rotina/registra-pagamento", status_code=status.HTTP_200_OK)
-def registra_pagamento(body:RotinaVendaModel) -> dict:
+def registraPagamento(body:RotinaVendaModel) -> dict:
     res:dict={}   
     rotina = RotinaService() 
     try:        
-        res = rotina.registrar_dados_pagamento(
+        res = rotina.registrarDadosPagamento(
             companyNumber=body.companyNumber,
             dataVendas=body.startDate,
             nsu=body.nsu
@@ -203,11 +200,11 @@ def registra_pagamento(body:RotinaVendaModel) -> dict:
     return res
 
 @router.post("/rotina/atualiza-pagamento", status_code=status.HTTP_200_OK)
-def atualiza_pagamento(body:RotinaPagamentoModel) -> dict:
+def atualizaPagamento(body:RotinaPagamentoModel) -> dict:
     res:dict={}
     rotina = RotinaService()
     try:        
-        res = rotina.atualizar_dados_pagamento(
+        res = rotina.atualizarDadosPagamento(
             companyNumber=body.companyNumber,
             startDate=body.startDate,
             endDate=body.endDate

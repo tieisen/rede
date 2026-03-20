@@ -1,5 +1,6 @@
-import os, base64, requests, json
+import os, base64, requests
 from typing import Literal
+from functools import wraps
 from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 from src.rede.utils.log import set_logger
@@ -22,7 +23,7 @@ class AutenticacaoService:
             logger.critical("Variáveis de ambiente não configuradas corretamente para REDE.")
             raise Exception("Variáveis de ambiente não configuradas corretamente para REDE.")
 
-    def converter_base64(self,texto:str) -> str:
+    def converterBase64(self,texto:str) -> str:
         base64_bytes = b""
         base64_string = ""
         try:
@@ -36,7 +37,7 @@ class AutenticacaoService:
             pass            
         return base64_string
 
-    def validar_ambiente_auth(self) -> dict:
+    def validarAmbienteAuth(self) -> dict:
         dados_ambiente:dict={}
         ambientes_validos = ['trn','prd']
         pacotes_validos = ['pgto','vendas']
@@ -55,17 +56,17 @@ class AutenticacaoService:
             
             match (self.pacote, self.ambiente):
                 case ('pgto', 'trn'):
-                    dados_ambiente['authorization']=f"Basic {self.converter_base64(self.auth)}"
+                    dados_ambiente['authorization']=f"Basic {self.converterBase64(self.auth)}"
                     dados_ambiente['url']=os.getenv('URL_AUTH_PT')
                 case ('pgto', 'prd'):
-                    dados_ambiente['authorization']=f"Basic {self.converter_base64(self.auth)}"
+                    dados_ambiente['authorization']=f"Basic {self.converterBase64(self.auth)}"
                     dados_ambiente['url']=os.getenv('URL_AUTH_PP')
                     pass                
                 case ('vendas', 'trn'):
-                    dados_ambiente['authorization']=f"Basic {self.converter_base64(self.auth)}"
+                    dados_ambiente['authorization']=f"Basic {self.converterBase64(self.auth)}"
                     dados_ambiente['url']=os.getenv('URL_AUTH_ST')
                 case ('vendas', 'prd'):
-                    dados_ambiente['authorization']=f"Basic {self.converter_base64(self.auth)}"
+                    dados_ambiente['authorization']=f"Basic {self.converterBase64(self.auth)}"
                     dados_ambiente['url']=os.getenv('URL_AUTH_SP')
                 case _:
                     raise ValueError("Erro ao validar ambiente: combinação de pacote e ambiente desconhecida")
@@ -74,7 +75,7 @@ class AutenticacaoService:
 
         return dados_ambiente
 
-    def calcular_expiracao(self,dados:dict) -> bool:
+    def calcularExpiracao(self,dados:dict) -> bool:
         try:
             assert isinstance(dados,dict)
             assert 'expires_in' in dados
@@ -90,9 +91,9 @@ class AutenticacaoService:
             pass
         return True
 
-    def gerar_token(self) -> dict:
+    def logar(self) -> dict:
         
-        self.dados_ambiente = self.validar_ambiente_auth()
+        self.dados_ambiente = self.validarAmbienteAuth()
         res:requests.Response=None
         dados:dict={}
         header:dict={}
@@ -125,44 +126,29 @@ class AutenticacaoService:
         finally:
             if res and res.ok:
                 dados = res.json()
-                self.calcular_expiracao(dados=dados)
+                self.calcularExpiracao(dados=dados)
             else:           
                 raise ConnectionError(f"Erro {res.status_code}: {res.text}")
         return dados
 
-    def salvar_token_arquivo(self, token: dict) -> bool:
-        """
-        Salva o token em um arquivo de texto.
-            :param caminho_arquivo: caminho do arquivo de texto onde o token será salvo.
-            :param token: token a ser salvo no arquivo.
-        """
-
-        status:bool = False
-        try:
-            with open(self.caminho_arquivo_token, 'w') as arquivo:
-                arquivo.write(json.dumps(token,ensure_ascii=False, indent=4))
-            status = True
-        except Exception as e:
-            logger.error(f"Erro ao salvar o token no arquivo: {e}")
-        finally:
-            pass
-        return status
-
-    def salvar_token(self, token: dict) -> bool:
+    def salvarToken(self, dadosToken: dict) -> bool:
         """
         Salva o token no banco de dados.            
             :param token: token a ser salvo.
         """
 
         status:bool = False
+        token:str = dadosToken.get('access_token')
+        expire_date:datetime = datetime.strptime(dadosToken.get('expire_time',''), "%Y-%m-%d %H:%M:%S")
+        expire_date_ajustado = expire_date - timedelta(seconds=60)
+        
         with get_session() as session:
             token_servicedb = TokenService(db=session)
             try:            
-                token_servicedb.salvar_token(
+                token_servicedb.salvarToken(
                     sistema=self.sistema,
-                    access_token=token.get('access_token', ''),
-                    refresh_token=token.get('refresh_token', ''),
-                    expires_at=datetime.strptime(token['expire_time'], '%Y-%m-%d %H:%M:%S') if token.get('expire_time') else None
+                    accessToken=token,
+                    expiresAt=expire_date_ajustado
                 )
                 status = True
             except Exception as e:
@@ -170,26 +156,8 @@ class AutenticacaoService:
             finally:
                 session.close()
         return status
-
-    def carregar_token_arquivo(self) -> dict:
-        """
-        Carrega o token de um arquivo de texto.
-            :param caminho_arquivo: caminho do arquivo de texto onde o token está salvo.
-            :return dict: token carregado do arquivo.
-        """
-        try:
-            if os.path.exists(self.caminho_arquivo_token):
-                with open(self.caminho_arquivo_token, 'r') as arquivo:
-                    token = json.loads(arquivo.read())
-                    return token
-            else:
-                logger.warning("Arquivo de token não encontrado.")
-                return {}
-        except Exception as e:
-            logger.error(f"Erro ao carregar o token do arquivo: {e}")
-            return {}
-
-    def carregar_token(self) -> dict:
+    
+    def carregarToken(self) -> dict:
         """
         Carrega o token do banco de dados.
             :return dict: token carregado.
@@ -198,7 +166,7 @@ class AutenticacaoService:
         with get_session() as session:
             token_servicedb = TokenService(db=session)
             try:
-                token = token_servicedb.obter_token(sistema=self.sistema)
+                token = token_servicedb.obterToken(sistema=self.sistema)
                 if token:
                     return token.__dict__
                 else:
@@ -208,49 +176,68 @@ class AutenticacaoService:
             finally:
                 session.close()
         return token
+    
+    def validarToken(self) -> bool:
+        status:bool = False
+        self.token:str = ''
+        agora:datetime = datetime.now().replace(microsecond=0)
+        expiracao_token:datetime = None        
+        dados_token:dict = self.carregarToken()
 
-    def autenticar_arquivo(self) -> str:
-        """
-        Realiza o processo de autenticação, verificando se o token existente é válido ou se é necessário solicitar um novo token.
-            :return str: token de acesso válido para uso nas requisições à API.
-        """
-        token:dict = self.carregar_token_arquivo()
-        if not token or datetime.strptime(token.get('expire_time', '1970-01-01 00:00:00'), '%Y-%m-%d %H:%M:%S') <= datetime.now():
-            token = self.gerar_token()
-            if token:
-                self.salvar_token_arquivo(token)
-                self.token = token.get('access_token', '')
-                return token.get('access_token', '')
-            else:
-                return ''
-        else:
-            self.token = token.get('access_token', '')
-            return token.get('access_token', '')
+        if not dados_token:
+            logger.error(f"Dados do token não encontrado")
+            return status
+        
+        expiracao_token = dados_token.get('expires_at').replace(microsecond=0) if dados_token.get('expires_at') else None
+        self.token = dados_token.get('access_token')        
+        
+        if (not self.token) or (not expiracao_token):
+            logger.error(f"Token não encontrado")
+            return status
 
-    def autenticar(self) -> bool:
+        if expiracao_token <= agora:
+            return status
+        
+        status = True
+        return status
+    
+    def atualizarToken(self) -> bool:        
+        status:bool = False
+        dados_token:dict = self.logar()
+        if dados_token:
+            self.token = dados_token.get('access_token', '')
+            status = self.salvarToken(dados_token)            
+        return status    
+
+    def autenticar(self) -> str:
+        if not self.validarToken():
+            self.atualizarToken()
+        return self.token
+    
+    def accessToken(func):
         """
-        Realiza o processo de autenticação, verificando se o token existente é válido ou se é necessário solicitar um novo token.
-            :return str: token de acesso válido para uso nas requisições à API.
-        """
-        token:dict = self.carregar_token()
-        if not token or not token.get('expires_at') or token.get('expires_at') <= datetime.now():
-            token = self.gerar_token()
-            if token:
-                self.salvar_token(token)
-                self.token = token.get('access_token', '')
-                return True
-            else:
-                return False
-        else:
-            self.token = token.get('access_token', '')
-            return True
+        Executa rotina de autenticacao
+            :param func: função que recebe o decorador
+        """        
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            try:        
+                token = AutenticacaoService().autenticar()                
+                self.token = token
+                if not self.token:
+                    raise ValueError("Não foi possível autenticar.")
+                return func(self, *args, **kwargs)
+            finally:
+                self.token = None
+        return wrapper     
 
 class LinkPagamentoService(AutenticacaoService):
 
     def __init__(self):
         super().__init__()
+        self.token = None
 
-    def validar_ambiente_link(self,ambiente: Literal['trn', 'prd']=None) -> str:
+    def validarAmbienteLink(self,ambiente: Literal['trn', 'prd']=None) -> str:
         ambientes_validos = ['trn','prd']
         url:str=''
         if not ambiente:
@@ -275,24 +262,22 @@ class LinkPagamentoService(AutenticacaoService):
             pass
         return url
 
-    def consultar_detalhes_link(self,paymentLinkId:str,companyNumber:str,ambiente: Literal['trn', 'prd']=None,token:str=None) -> dict:
+    @AutenticacaoService.accessToken
+    def consultarDetalhesLink(self,paymentLinkId:str,companyNumber:str,ambiente: Literal['trn', 'prd']=None) -> dict:
 
         data:dict={}
         url:str=''
         header:dict={}
         res:requests.Response=None
 
-        url=self.validar_ambiente_link(ambiente=ambiente)
+        url=self.validarAmbienteLink(ambiente=ambiente)
         url+=f'/details/{paymentLinkId}'
 
         header={
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
             "Company-number": str(companyNumber)
         }
-        
-        if not token:
-            token = self.token        
 
         try:
             res=requests.get(
@@ -309,21 +294,19 @@ class LinkPagamentoService(AutenticacaoService):
         
         return data
 
-    def criar_link(self,companyNumber:str,body:dict,ambiente: Literal['trn', 'prd']=None,token:str=None) -> dict:
+    @AutenticacaoService.accessToken
+    def criarLink(self,companyNumber:str,body:dict,ambiente: Literal['trn', 'prd']=None) -> dict:
 
         data:dict={}
         url:str=''
         header:dict={}
         res:requests.Response=None
 
-        url = self.validar_ambiente_link(ambiente=ambiente)
-        url+='/create'
-        
-        if not token:
-            token = self.token        
+        url = self.validarAmbienteLink(ambiente=ambiente)
+        url+='/create'            
 
         header={
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
             "Company-number": str(companyNumber)
         }
@@ -348,8 +331,9 @@ class VendasService(AutenticacaoService):
 
     def __init__(self):
         super().__init__()
+        self.token = None        
 
-    def validar_ambiente_vendas(self,ambiente: Literal['trn', 'prd']=None) -> str:
+    def validarAmbienteVendas(self,ambiente: Literal['trn', 'prd']=None) -> str:
 
         ambientes_validos = ['trn','prd']
         url:str=''
@@ -370,24 +354,22 @@ class VendasService(AutenticacaoService):
                 raise ValueError(f"Ambiente inválido:\n>>{ambiente}")           
         return url
 
-    def consultar_vendas_parceladas(self,companyNumber:int,startDate:date,endDate:date,nsu:int=None,token:str=None,ambiente:Literal['trn', 'prd']=None) -> dict:
+    @AutenticacaoService.accessToken
+    def consultarVendasParceladas(self,companyNumber:int,startDate:date,endDate:date,nsu:int=None,ambiente:Literal['trn', 'prd']=None) -> dict:
 
         data:dict={}
         url:str=''
         header:dict={}
         res:requests.Response=None
 
-        url=self.validar_ambiente_vendas(ambiente=ambiente)
+        url=self.validarAmbienteVendas(ambiente=ambiente)
         if nsu:
             url+=f"/v2/payments/installments/{companyNumber}?saleDate={startDate.strftime('%Y-%m-%d')}&nsu={nsu}"
         else:
             url+=f"/v1/sales/installments?parentCompanyNumber={companyNumber}&subsidiaries={companyNumber}&startDate={startDate.strftime('%Y-%m-%d')}&endDate={endDate.strftime('%Y-%m-%d')}"
 
-        if not token:
-            token = self.token
-
         header={
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
 
@@ -411,21 +393,19 @@ class VendasService(AutenticacaoService):
                     raise ConnectionError(f"Erro {res.status_code} na consulta de vendas parceladas: {res.text}")
         return data
     
-    def consultar_pagamentos_oc(self,companyNumber:int,startDate:date,endDate:date,token:str=None,ambiente:Literal['trn', 'prd']=None) -> dict:
+    @AutenticacaoService.accessToken
+    def consultarPagamentosOc(self,companyNumber:int,startDate:date,endDate:date,ambiente:Literal['trn', 'prd']=None) -> dict:
 
         data:dict={}
         url:str=''
         header:dict={}
         res:requests.Response=None    
 
-        url=self.validar_ambiente_vendas(ambiente=ambiente)
+        url=self.validarAmbienteVendas(ambiente=ambiente)
         url+=f'/v1/payments/credit-orders?parentCompanyNumber={companyNumber}&subsidiaries={companyNumber}&startDate={startDate.strftime('%Y-%m-%d')}&endDate={endDate.strftime('%Y-%m-%d')}'
-        
-        if not token:
-            token = self.token
 
         header={
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
 
@@ -448,21 +428,19 @@ class VendasService(AutenticacaoService):
         
         return data
 
-    def consultar_pagamentos_id(self,companyNumber:int,paymentId:str,token:str=None,ambiente:Literal['trn', 'prd']=None) -> dict:
+    @AutenticacaoService.accessToken
+    def consultarPagamentosId(self,companyNumber:int,paymentId:str,ambiente:Literal['trn', 'prd']=None) -> dict:
 
         data:dict={}
         url:str=''
         header:dict={}
         res:requests.Response=None
 
-        url=self.validar_ambiente_vendas(ambiente=ambiente)
+        url=self.validarAmbienteVendas(ambiente=ambiente)
         url+=f'/v1/payments/{companyNumber}/{paymentId}'
 
-        if not token:
-            token = self.token
-
         header={
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
 
@@ -485,9 +463,9 @@ class VendasService(AutenticacaoService):
         
         return data
     
-    def formatar_payload_consulta_vendas_parceladas(self,dados_vendas:dict=None) -> list[dict]:
+    def formatarPayloadConsultaVendasParceladas(self,dadosVendas:dict=None) -> list[dict]:
         
-        vendas:list[dict] = dados_vendas.get("content",{}).get("installments",[]) if dados_vendas else self.dados_vendas_parceladas
+        vendas:list[dict] = dadosVendas.get("content",{}).get("installments",[]) if dadosVendas else self.dados_vendas_parceladas
         try:            
             return [
                 {

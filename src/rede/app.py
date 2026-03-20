@@ -21,10 +21,10 @@ sch = SchedulerService()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup code
-    sch.start_scheduler()
+    sch.startScheduler()
     yield
     # Shutdown code
-    sch.stop_scheduler()
+    sch.stopScheduler()
 
 app = FastAPI(title=api_title,
               description=api_description,
