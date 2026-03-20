@@ -7,12 +7,11 @@ class TokenService:
     def __init__(self, db: Session):
         self.db = db 
         
-    def salvar_token(
+    def salvarToken(
         self,
         sistema: str,
-        access_token: str,
-        refresh_token: str | None = None,
-        expires_at: datetime | None = None,
+        accessToken: str,
+        expiresAt: datetime | None = None,
     ):
 
         token = (
@@ -22,15 +21,13 @@ class TokenService:
         )
 
         if token:
-            token.access_token = access_token
-            token.refresh_token = refresh_token
-            token.expires_at = expires_at
+            token.access_token = accessToken
+            token.expires_at = expiresAt
         else:
             token = Token(
                 sistema=sistema,
-                access_token=access_token,
-                refresh_token=refresh_token,
-                expires_at=expires_at,
+                access_token=accessToken,
+                expires_at=expiresAt,
             )
             self.db.add(token)
 
@@ -38,7 +35,7 @@ class TokenService:
         self.db.refresh(token)
         return token
     
-    def obter_token(self, sistema: str) -> Token | None:
+    def obterToken(self, sistema: str) -> Token | None:
         return (
             self.db.query(Token)
             .filter(Token.sistema == sistema)
