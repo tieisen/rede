@@ -14,17 +14,17 @@ class SchedulerService:
     def __init__(self):
         self.scheduler = None
 
-    def start_scheduler(self):
-        self.inicializar_tarefas()
+    def startScheduler(self):
+        self.inicializarTarefas()
         self.scheduler.start()
         logger.info("APScheduler iniciado. O job 'atualizar_dados_pagamento' será executado diariamente à 01:00.")
 
-    def stop_scheduler(self):
+    def stopScheduler(self):
         if self.scheduler:
             self.scheduler.shutdown(wait=False)
             logger.info("APScheduler encerrado.")
 
-    def job_atualizar_dados_pagamento(self):
+    def jobAtualizarDadosPagamento(self):
         """
         Job que executa a rotina de atualização de dados de pagamento da Rede.
         Busca os pagamentos do dia anterior para as empresas configuradas.
@@ -52,7 +52,7 @@ class SchedulerService:
         for company_number in company_numbers:
             logger.info(f"Processando pagamentos para a empresa {company_number} para o período de {start_date} a {end_date}.")
             try:
-                result = rotina.atualizar_dados_pagamento(
+                result = rotina.atualizarDadosPagamento(
                     companyNumber=company_number,
                     startDate=start_date,
                     endDate=end_date
@@ -69,7 +69,7 @@ class SchedulerService:
         return True
 
 
-    def inicializar_tarefas(self):
+    def inicializarTarefas(self):
         """
         Inicia o agendador de tarefas (scheduler).
         """
@@ -91,7 +91,7 @@ class SchedulerService:
         )
 
         self.scheduler.add_job(
-            self.job_atualizar_dados_pagamento,
+            self.jobAtualizarDadosPagamento,
             trigger="cron",
             hour=1,
             minute=0,
