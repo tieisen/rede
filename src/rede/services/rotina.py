@@ -32,7 +32,6 @@ class RotinaService():
             retorno['dados'] = payload_pgto
             retorno['sucesso'] = True
             
-            logger.info("- pass")
         except Exception as e:
             msg = f"Erro ao registrar dados de pagamento: {str(e)}"
             retorno['mensagem'] = msg
@@ -65,27 +64,25 @@ class RotinaService():
                 return {"sucesso": True, "mensagem": f"Nenhum pagamento encontrado para o período especificado ({startDate.strftime('%d/%m/%Y')}-{endDate.strftime('%d/%m/%Y')})."}
             dados_pagamento = dados_pagamento_raw['content']['paymentsCreditOrders']
 
-            logger.info("- Buscando dados financeiros na API Sankhya...")
             # Busca dados financeiros na API Sankhya com base nos salesSummaryNumber dos pagamentos encontrados
             lista_salesumnum = [d.get('saleSummaryNumber') for d in dados_pagamento]
             if not lista_salesumnum:
                 raise Exception("Nenhum saleSummaryNumber encontrado nos pagamentos")
             
+            logger.info(f"Buscando dados financeiros para os seguintes saleSummaryNumber: {', '.join(map(str, lista_salesumnum))}")
+
             dados_financeiro = self.snk_pgto.buscar(lista_saleSummaryNumber=lista_salesumnum)                
             if not dados_financeiro:
-                raise Exception("Nenhum registro financeiro encontrado para os salesSummaryNumber")
+                raise Exception("Algumas transações financeiras não foram encontradas no Sankhya. NSUs: "+', '.join(map(str, lista_salesumnum)))
 
-            logger.info("- Formatando payload de atualização para a API Sankhya...")
             # Formata payload de atualização para a API Sankhya com base nos dados de pagamento e financeiro encontrados
             if not self.snk_pgto.formatarPayloadPagamento(dadosPagamento=dados_pagamento, dadosFinanceiro=dados_financeiro):
                 raise Exception("Falha ao formatar payload financeiro.")
 
-            logger.info("- Atualizando dados financeiros na API Sankhya...")
             upd_pgto_snk = self.snk_pgto.atualizar()
             retorno['sucesso'] = upd_pgto_snk
             if not upd_pgto_snk:
                 raise Exception("Falha ao atualizar dados financeiro.")
-            logger.info("- pass")
         except Exception as e:
             msg = f"Erro ao atualizar dados financeiro: {str(e)}"
             retorno['mensagem'] = msg

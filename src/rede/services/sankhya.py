@@ -733,9 +733,7 @@ class PagamentoService(AutenticacaoService):
         }
         headers = { "Authorization":f"Bearer {self.token}" }
 
-        logger.info(f"Enviando headers de atualização para a API Sankhya: {headers}")
-        logger.info(f"Enviando payload de atualização para a API Sankhya: {payload_send}")        
-
+        logger.info(f"Enviando payload de atualização para a API Sankhya: {payload_send}")
         try:
             res = requests.post(
                 url=url,
