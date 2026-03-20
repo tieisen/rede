@@ -15,8 +15,7 @@ def main():
 
     uvicorn.run(app="rede.app:app",
                 host=host,
-                port=port,
-                reload=True)
+                port=port)
     
 if __name__ == "__main__":
     main()
