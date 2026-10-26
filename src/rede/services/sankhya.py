@@ -11,6 +11,12 @@ load_dotenv()
 class AutenticacaoService:
 
     def __init__(self):
+        """
+            Lê as configurações de autenticação do Sankhya no .env: URL_AUTH_SNK, XTOKEN e APP_ID.
+
+            Gera Exception se nenhuma delas estiver configurada.
+        """
+
         self.sistema = 'sankhya'
         self.url = os.getenv('URL_AUTH_SNK')
         self.x_token = os.getenv('XTOKEN')
@@ -21,6 +27,15 @@ class AutenticacaoService:
             raise Exception("Variáveis de ambiente não configuradas corretamente para SANKHYA.")
 
     def salvarToken(self, dadosToken: dict) -> bool:        
+        """
+            Salva o token do Sankhya no banco, com expiração 60s antes de dhExpiracaoToken.
+
+            Parametros:
+                dadosToken: retorno de logar (token, dhExpiracaoToken)
+
+            Retorno: True se salvou
+        """
+
         status:bool = False
         token:str = dadosToken.get('token')
         expire_date:datetime = datetime.strptime(dadosToken.get('dhExpiracaoToken',''), "%Y-%m-%dT%H:%M:%S.%f")
@@ -42,6 +57,12 @@ class AutenticacaoService:
         return status
 
     def carregarToken(self) -> dict:
+        """
+            Carrega o token do Sankhya salvo no banco.
+
+            Retorno: dados do registro Token ou {} se não existir
+        """
+
         token:dict = {}
         with get_session() as session:
             token_servicedb = TokenService(db=session)
@@ -58,6 +79,11 @@ class AutenticacaoService:
         return token
 
     def logar(self) -> dict:
+        """
+            Solicita um novo token na API Sankhya (URL_AUTH_SNK/APP_ID com header xToken).
+
+            Retorno: token, dhExpiracaoToken, ... ou '' em caso de erro
+        """
 
         auth:dict=''
 
@@ -87,6 +113,13 @@ class AutenticacaoService:
         return auth
 
     def validarToken(self) -> bool:
+        """
+            Carrega o token salvo no banco e verifica se ainda é válido.
+            Preenche self.token com o token encontrado.
+
+            Retorno: True se o token existe e não expirou
+        """
+
         status:bool = False
         self.token:str = ''
         agora:datetime = datetime.now().replace(microsecond=0)
@@ -111,6 +144,12 @@ class AutenticacaoService:
         return status
     
     def atualizarToken(self) -> bool:        
+        """
+            Gera um novo token na API Sankhya e salva no banco.
+
+            Retorno: True se salvou
+        """
+
         status:bool = False
         dados_token:dict = self.logar()
         if dados_token:
@@ -119,6 +158,12 @@ class AutenticacaoService:
         return status
 
     def autenticar(self) -> str:
+        """
+            Retorna um token válido: usa o salvo no banco ou gera um novo se expirou.
+
+            Retorno: token
+        """
+
         if not self.validarToken():
             self.atualizarToken()
         return self.token
@@ -143,6 +188,13 @@ class AutenticacaoService:
 class FinanceiroService(AutenticacaoService):
 
     def __init__(self):
+        """
+            Serviço da entidade Financeiro (TGFFIN).
+            self.fields define a ordem dos campos AD_REDE_* usada nos payloads do DatasetSP.save.
+
+            *Não é utilizado*
+        """
+
         super().__init__()
         self.token = None
         self.fields:list = [
@@ -160,6 +212,17 @@ class FinanceiroService(AutenticacaoService):
                 ]
 
     def formatarRetorno(self, res:dict) -> list:
+        """
+            Converte a resposta da API Sankhya em lista de dicionários com as chaves em minúsculo.
+
+            Aceita retornos de DbExplorerSP.executeQuery, CRUDServiceProvider.loadView
+            e CRUDServiceProvider.loadRecords.
+
+            Parametros:
+                res: JSON da resposta
+
+            Retorno: list[dict]
+        """
 
         # RETORNO DE CONSULTA PELO DBEXPLORER
         if res.get('serviceName') == 'DbExplorerSP.executeQuery':
@@ -239,8 +302,24 @@ class FinanceiroService(AutenticacaoService):
 
     @AutenticacaoService.accessToken
     def buscar(self,saleSummaryNumber:int=None,lista:list=None) -> dict:
+        """
+            Busca títulos na entidade Financeiro (TGFFIN) pelo AD_REDE_SALESUMNUM.
+
+            Parametros:
+                saleSummaryNumber?: um RV
+                lista?: lista de RVs
+
+            Retorno: list[dict] com os títulos encontrados
+
+            *Não é utilizado*
+        """
 
         def montaExpressao(saleSummaryNumber:int=None,lista:list=None):
+            """
+                Monta o critério de busca por AD_REDE_SALESUMNUM (um RV ou uma lista).
+                Retorna False se nenhum parâmetro for informado.
+            """
+
             nonlocal criteria
 
             if not any([saleSummaryNumber,lista]):
@@ -322,6 +401,16 @@ class FinanceiroService(AutenticacaoService):
 
     @AutenticacaoService.accessToken
     def atualizar(self,payload:list[dict]) -> bool:
+        """
+            Atualiza os campos AD_REDE_* dos títulos na entidade Financeiro via DatasetSP.save.
+
+            Parametros:
+                payload: registros {"pk": {"NUFIN": ...}, "values": {...}}
+
+            Retorno: True se o Sankhya retornou status '1'
+
+            *Não é utilizado*
+        """
         
         sucesso:bool = False
         url:str = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=DatasetSP.save&outputType=json'        
@@ -359,6 +448,19 @@ class FinanceiroService(AutenticacaoService):
         return sucesso
 
     def formatarPayloadVenda(self,companyNumber:int,dadosRede:dict,dadosFinanceiro:dict) -> list[dict]:
+        """
+            Monta o payload de atualização dos títulos com os dados das parcelas da Rede.
+            Liga a parcela ao título pela posição nas listas.
+
+            Parametros:
+                companyNumber: PV
+                dadosRede: retorno de consultarVendasParceladas
+                dadosFinanceiro: títulos do Sankhya (nufin)
+
+            Retorno: list[dict] para atualizar ou [] em caso de erro
+
+            *Não é utilizado*
+        """
 
         try:
             return [
@@ -383,6 +485,19 @@ class FinanceiroService(AutenticacaoService):
             return []
 
     def formatarPayloadPagamento(self,dadosPagamento:dict,dadosFinanceiro:dict) -> list[dict]:
+        """
+            Monta o payload que grava data e ID do pagamento nos títulos.
+            Cruza ad_rede_salesumnum e ad_rede_expirationdate do título com
+            saleSummaryNumber e paymentDate da ordem de crédito.
+
+            Parametros:
+                dadosPagamento: paymentsCreditOrders da Rede
+                dadosFinanceiro: títulos do Sankhya
+
+            Retorno: list[dict] para atualizar ou [] em caso de erro
+
+            *Não é utilizado*
+        """
 
         pagamento:dict = {}
         matching_financeiro:dict = {}
@@ -412,6 +527,12 @@ class FinanceiroService(AutenticacaoService):
 class PagamentoService(AutenticacaoService):
 
     def __init__(self):
+        """
+            Serviço da tabela AD_REDEPAGAMENTO.
+            self.fields define a ordem dos campos usada nos payloads do DatasetSP.save
+            (ex.: "6" = PAYMENTDATE, "7" = PAYMENTID).
+        """
+
         self.token = None        
         super().__init__()
         self.fields:list = [
@@ -428,6 +549,17 @@ class PagamentoService(AutenticacaoService):
         self.payload_pagamento:list[dict] = []
 
     def formatarRetorno(self, res:dict) -> list:
+        """
+            Converte a resposta da API Sankhya em lista de dicionários com as chaves em minúsculo.
+
+            Aceita retornos de DbExplorerSP.executeQuery, CRUDServiceProvider.loadView
+            e CRUDServiceProvider.loadRecords.
+
+            Parametros:
+                res: JSON da resposta
+
+            Retorno: list[dict]
+        """
 
         # RETORNO DE CONSULTA PELO DBEXPLORER
         if res.get('serviceName') == 'DbExplorerSP.executeQuery':
@@ -506,6 +638,19 @@ class PagamentoService(AutenticacaoService):
                 return new_res
 
     def formatarPayloadRegistro(self,dadosRede:dict,dadosSankhya:dict) -> bool:
+        """
+            Monta o payload que grava os dados das parcelas da Rede nas linhas da AD_REDEPAGAMENTO.
+            Liga a parcela à linha pelo número da parcela (installmentNumber = desdobramento).
+            Guarda o resultado em self.payload_registro.
+
+            Parametros:
+                dadosRede: retorno de consultarVendasParceladas
+                dadosSankhya: linhas com idPgto e desdobramento
+
+            Retorno: True se montou, False em caso de erro
+
+            *Não é utilizado*
+        """
 
         matching:dict = {}
         payload_upd_snk:list[dict] = []
@@ -537,6 +682,17 @@ class PagamentoService(AutenticacaoService):
             return False
 
     def formatarPayloadPagamento(self,dadosPagamento:dict,dadosFinanceiro:dict) -> bool:
+        """
+            Monta o payload que grava PAYMENTDATE e PAYMENTID nas linhas da AD_REDEPAGAMENTO.
+            Cruza salesumnum e expirationdate da linha com saleSummaryNumber e paymentDate
+            da ordem de crédito. Guarda o resultado em self.payload_pagamento.
+
+            Parametros:
+                dadosPagamento: paymentsCreditOrders da Rede
+                dadosFinanceiro: linhas da AD_REDEPAGAMENTO
+
+            Retorno: True se montou, False em caso de erro
+        """
 
         financeiro:dict = {}
         matching_pagamento:dict = {}
@@ -566,8 +722,19 @@ class PagamentoService(AutenticacaoService):
 
     @AutenticacaoService.accessToken
     def buscar(self,saleSummaryNumber:int=None,nsu:int=None,lista_saleSummaryNumber:list=None,lista_nsu:list=None) -> dict:
-
+        
+        """
+            Busca no Sankhya na tabela AD_REDEPAGAMENTO de acordo com o
+            parâmetro passado
+            
+        """
+        
         def validaParametros(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu):
+            """
+                Valida se pelo menos um critério de busca foi informado.
+                Gera ValueError se nenhum for.
+            """
+
             saleSummaryNumber = int(saleSummaryNumber) if saleSummaryNumber else None
             nsu = int(nsu) if nsu else None
             lista_saleSummaryNumber = [int(i) for i in lista_saleSummaryNumber] if lista_saleSummaryNumber else None
@@ -577,6 +744,12 @@ class PagamentoService(AutenticacaoService):
                 raise ValueError("Nenhum critério de busca fornecido.")                
 
         def montaExpressao(saleSummaryNumber,nsu,lista_saleSummaryNumber,lista_nsu):
+            
+            """
+                Monta a expressão para buscar no sankhya de acordo com o 
+                parâmetro passado
+            """
+            
             nonlocal criteria
             
             try:
@@ -671,6 +844,16 @@ class PagamentoService(AutenticacaoService):
 
     @AutenticacaoService.accessToken
     def enviar(self,payload:list[dict]=None) -> bool:
+        """
+            Grava as linhas da AD_REDEPAGAMENTO via DatasetSP.save.
+
+            Parametros:
+                payload?: registros. Se não informado, usa self.payload_registro
+
+            Retorno: True se o Sankhya retornou status '1'
+
+            *Não é utilizado*
+        """
         
         sucesso:bool = False
         url:str = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=DatasetSP.save&outputType=json'       
@@ -714,6 +897,14 @@ class PagamentoService(AutenticacaoService):
     
     @AutenticacaoService.accessToken
     def atualizar(self,payload:list[dict]=None) -> bool:
+        """
+            Atualiza as linhas da AD_REDEPAGAMENTO via DatasetSP.save.
+
+            Parametros:
+                payload?: registros. Se não informado, usa self.payload_pagamento
+
+            Retorno: True se o Sankhya retornou status '1'
+        """
         
         sucesso:bool = False
         url:str = 'https://api.sankhya.com.br/gateway/v1/mge/service.sbr?serviceName=DatasetSP.save&outputType=json'        

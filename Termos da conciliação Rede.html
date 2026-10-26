@@ -1,0 +1,222 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Termos da conciliação Rede</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: coluna única de leitura; diagramas largos rolam dentro do próprio contêiner */
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --fg: #1b2230; --muted: #5d6676;
+  --line: #c9cfd9; --accent: #b4540f; --accent-soft: #fbeee3; --rede: #24508f;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12161d; --surface: #1a2029; --fg: #e3e7ee; --muted: #9aa3b2;
+  --line: #3a4352; --accent: #f0975a; --accent-soft: #3a2618; --rede: #8fb4ea; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12161d; --surface: #1a2029; --fg: #e3e7ee; --muted: #9aa3b2;
+  --line: #3a4352; --accent: #f0975a; --accent-soft: #3a2618; --rede: #8fb4ea; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 56px; }
+main { max-width: 1160px; margin: 0 auto; display: grid; gap: 36px; }
+header { display: grid; gap: 6px; max-width: 70ch; }
+h1 { font-size: 1.75rem; font-weight: 600; margin: 0; text-wrap: balance; }
+h2 { font-size: 1.15rem; font-weight: 600; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; }
+section { display: grid; gap: 12px; min-width: 0; }
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.scroll { overflow-x: auto; }
+svg { display: block; max-width: 100%; height: auto; min-width: 760px; color: var(--fg); font-family: var(--sans); }
+figcaption { color: var(--muted); font-size: 0.9rem; max-width: 80ch; }
+figcaption code, td code, p code { font-family: var(--mono); font-size: 0.85em; background: var(--accent-soft); padding: 0 4px; border-radius: 3px; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 0.92rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 500; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 600; white-space: nowrap; }
+.mono { font-family: var(--mono); font-size: 0.85rem; }
+</style>
+
+<main>
+  <header>
+    <h1>Termos da conciliação Rede</h1>
+    <p class="lede">Como uma venda no cartão vira um depósito na conta, quais identificadores a API da Rede usa em cada etapa e como a rotina diária liga esses dados à tabela <code>AD_REDEPAGAMENTO</code> do Sankhya.</p>
+  </header>
+
+  <section>
+    <h2>Da venda ao depósito</h2>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1140 470" role="img" aria-label="Venda (NSU) é agrupada em um RV; o RV vence em parcelas; cada parcela é paga por uma ordem de crédito (paymentId), que credita o depósito. A rotina encontra a linha da AD_REDEPAGAMENTO pelo RV e pelo vencimento e grava a data e o ID do pagamento.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+          <marker id="ar-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+        </defs>
+
+        <!-- Fronteira da API Rede -->
+        <rect x="8" y="14" width="900" height="262" rx="8" fill="none" stroke="var(--rede)" stroke-dasharray="5 4"/>
+        <text x="22" y="36" font-size="12" font-weight="600" fill="var(--rede)">API Rede · tudo dentro de um PV (companyNumber)</text>
+
+        <!-- Endpoint de cada entidade -->
+        <g font-family="var(--mono)" font-size="11" fill="var(--muted)" text-anchor="middle">
+          <text x="106" y="108">filtro ?nsu=</text>
+          <text x="338" y="108">campo em credit-orders</text>
+          <text x="570" y="108">/v1/sales/installments</text>
+          <text x="802" y="108">/v1/payments/credit-orders</text>
+          <text x="1034" y="108">fora da API</text>
+        </g>
+
+        <!-- Entidades -->
+        <g font-size="12">
+          <rect x="21" y="120" width="170" height="130" rx="6" fill="var(--surface)" stroke="currentColor"/>
+          <text x="35" y="144" font-size="14" font-weight="600" fill="currentColor">Venda</text>
+          <text x="35" y="168" font-family="var(--mono)" font-weight="500" fill="var(--accent)">NSU</text>
+          <text x="35" y="192" fill="var(--muted)">authorizationCode</text>
+          <text x="35" y="210" fill="var(--muted)">cardNumber (mascarado)</text>
+          <text x="35" y="228" fill="var(--muted)">brand</text>
+
+          <rect x="253" y="120" width="170" height="130" rx="6" fill="var(--surface)" stroke="currentColor"/>
+          <text x="267" y="144" font-size="14" font-weight="600" fill="currentColor">Resumo de Vendas</text>
+          <text x="267" y="168" font-family="var(--mono)" font-weight="500" fill="var(--accent)">saleSummaryNumber</text>
+          <text x="267" y="192" fill="var(--muted)">RV: lote do dia por</text>
+          <text x="267" y="210" fill="var(--muted)">bandeira e modalidade</text>
+
+          <rect x="485" y="120" width="170" height="130" rx="6" fill="var(--surface)" stroke="currentColor"/>
+          <text x="499" y="144" font-size="14" font-weight="600" fill="currentColor">Parcela</text>
+          <text x="499" y="168" font-family="var(--mono)" font-weight="500" fill="var(--accent)">expirationDate</text>
+          <text x="499" y="192" fill="var(--muted)">installmentNumber</text>
+          <text x="499" y="210" fill="var(--muted)">amount · netAmount · mdr</text>
+          <text x="499" y="228" fill="var(--muted)">status SCHEDULLED</text>
+
+          <rect x="717" y="120" width="170" height="130" rx="6" fill="var(--surface)" stroke="currentColor"/>
+          <text x="731" y="144" font-size="14" font-weight="600" fill="currentColor">Ordem de crédito</text>
+          <text x="731" y="168" font-family="var(--mono)" font-weight="500" fill="var(--accent)">paymentId</text>
+          <text x="731" y="192" fill="var(--muted)">paymentDate</text>
+          <text x="731" y="210" fill="var(--muted)">creditOrderNumber</text>
+          <text x="731" y="228" fill="var(--muted)">type CREDIT</text>
+
+          <rect x="949" y="120" width="170" height="130" rx="6" fill="var(--surface)" stroke="currentColor"/>
+          <text x="963" y="144" font-size="14" font-weight="600" fill="currentColor">Depósito</text>
+          <text x="963" y="168" font-family="var(--mono)" font-weight="500" fill="currentColor">conta do lojista</text>
+          <text x="963" y="192" fill="var(--muted)">aparece no extrato</text>
+          <text x="963" y="210" fill="var(--muted)">do banco</text>
+        </g>
+
+        <!-- Relações -->
+        <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ar)">
+          <line x1="191" y1="185" x2="251" y2="185"/>
+          <line x1="423" y1="185" x2="483" y2="185"/>
+          <line x1="655" y1="185" x2="715" y2="185"/>
+          <line x1="887" y1="185" x2="947" y2="185"/>
+        </g>
+        <g font-size="11" text-anchor="middle" fill="currentColor">
+          <text x="222" y="177" font-weight="600">N : 1</text><text x="222" y="202" fill="var(--muted)">agrupada</text>
+          <text x="454" y="177" font-weight="600">1 : N</text><text x="454" y="202" fill="var(--muted)">vence em</text>
+          <text x="686" y="177" font-weight="600">N : 1</text><text x="686" y="202" fill="var(--muted)">paga por</text>
+          <text x="918" y="177" font-weight="600">1 : 1</text><text x="918" y="202" fill="var(--muted)">credita</text>
+        </g>
+
+        <!-- Sankhya -->
+        <rect x="250" y="330" width="640" height="110" rx="6" fill="var(--surface)" stroke="currentColor"/>
+        <text x="264" y="352" font-size="13" font-weight="600" fill="currentColor">AD_REDEPAGAMENTO (Sankhya)</text>
+        <text x="876" y="352" font-size="11" text-anchor="end" fill="var(--muted)">1 linha = 1 parcela de um RV</text>
+        <line x1="250" y1="364" x2="890" y2="364" stroke="var(--line)"/>
+        <g stroke="var(--line)"><line x1="410" y1="364" x2="410" y2="440"/><line x1="570" y1="364" x2="570" y2="440"/><line x1="730" y1="364" x2="730" y2="440"/></g>
+        <g font-family="var(--mono)" font-size="12" text-anchor="middle" fill="currentColor">
+          <text x="330" y="398">SALESUMNUM</text>
+          <text x="490" y="398">EXPIRATIONDATE</text>
+          <text x="650" y="398" fill="var(--accent)" font-weight="500">PAYMENTDATE</text>
+          <text x="810" y="398" fill="var(--accent)" font-weight="500">PAYMENTID</text>
+        </g>
+        <g font-size="11" text-anchor="middle" fill="var(--muted)">
+          <text x="330" y="422">chave de busca</text>
+          <text x="490" y="422">= paymentDate</text>
+          <text x="650" y="422">gravado pelo job</text>
+          <text x="810" y="422">gravado pelo job</text>
+        </g>
+
+        <!-- Cruzamento -->
+        <g stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3" fill="none">
+          <line x1="338" y1="250" x2="330" y2="330"/>
+          <line x1="560" y1="250" x2="495" y2="330"/>
+        </g>
+        <g stroke="var(--accent)" stroke-width="1.6" fill="none" marker-end="url(#ar-acc)">
+          <line x1="790" y1="250" x2="656" y2="328"/>
+          <line x1="810" y1="250" x2="810" y2="328"/>
+        </g>
+        <g font-size="11" fill="currentColor">
+          <text x="344" y="300">mesmo RV</text>
+          <text x="528" y="300" text-anchor="end">mesma data</text>
+          <text x="818" y="300" fill="var(--accent)" font-weight="600">job das 01:00 grava</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>A rotina lê as ordens de crédito do dia anterior e procura a linha da <code>AD_REDEPAGAMENTO</code> em que <code>SALESUMNUM = saleSummaryNumber</code> e <code>EXPIRATIONDATE = paymentDate</code>. Nessa linha grava <code>PAYMENTDATE</code> e <code>PAYMENTID</code>. O NSU não entra no cruzamento, e a linha já precisa existir: a API não a cria.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Por que NSU e paymentId não se ligam diretamente</h2>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="Exemplo: três vendas parceladas em 3x no mesmo dia formam o RV 4711. O RV vence em três parcelas, cada uma paga por um paymentId diferente. A ordem de crédito de 10/11 também paga parcelas de outro RV.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        </defs>
+        <g font-size="11" font-weight="600" fill="var(--muted)" text-anchor="middle" letter-spacing="0.06em">
+          <text x="90" y="22">VENDAS · 10/10</text><text x="340" y="22">RV</text><text x="590" y="22">PARCELAS</text><text x="860" y="22">ORDENS DE CRÉDITO</text>
+        </g>
+        <g font-family="var(--mono)" font-size="12" text-anchor="middle" fill="currentColor">
+          <rect x="20" y="50" width="140" height="40" rx="5" fill="var(--surface)" stroke="currentColor"/><text x="90" y="75">NSU …0001 · 3x</text>
+          <rect x="20" y="130" width="140" height="40" rx="5" fill="var(--surface)" stroke="currentColor"/><text x="90" y="155">NSU …0002 · 3x</text>
+          <rect x="20" y="210" width="140" height="40" rx="5" fill="var(--surface)" stroke="currentColor"/><text x="90" y="235">NSU …0003 · 3x</text>
+
+          <rect x="270" y="130" width="140" height="40" rx="5" fill="var(--surface)" stroke="currentColor"/><text x="340" y="155">RV 4711</text>
+
+          <rect x="520" y="50" width="140" height="40" rx="5" fill="var(--surface)" stroke="currentColor"/><text x="590" y="75">1/3 · 10/11</text>
+          <rect x="520" y="130" width="140" height="40" rx="5" fill="var(--surface)" stroke="currentColor"/><text x="590" y="155">2/3 · 10/12</text>
+          <rect x="520" y="210" width="140" height="40" rx="5" fill="var(--surface)" stroke="currentColor"/><text x="590" y="235">3/3 · 10/01</text>
+
+          <rect x="780" y="50" width="160" height="40" rx="5" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="860" y="75">paymentId A</text>
+          <rect x="780" y="130" width="160" height="40" rx="5" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="860" y="155">paymentId B</text>
+          <rect x="780" y="210" width="160" height="40" rx="5" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="860" y="235">paymentId C</text>
+        </g>
+        <g stroke="currentColor" stroke-width="1.3" fill="none" marker-end="url(#ar2)">
+          <line x1="160" y1="70" x2="268" y2="142"/><line x1="160" y1="150" x2="268" y2="150"/><line x1="160" y1="230" x2="268" y2="158"/>
+          <line x1="410" y1="142" x2="518" y2="70"/><line x1="410" y1="150" x2="518" y2="150"/><line x1="410" y1="158" x2="518" y2="230"/>
+          <line x1="660" y1="70" x2="778" y2="70"/><line x1="660" y1="150" x2="778" y2="150"/><line x1="660" y1="230" x2="778" y2="230"/>
+        </g>
+        <!-- Outro RV na mesma OC -->
+        <rect x="520" y="268" width="140" height="26" rx="5" fill="none" stroke="var(--muted)" stroke-dasharray="4 3"/>
+        <text x="590" y="285" font-family="var(--mono)" font-size="11" text-anchor="middle" fill="var(--muted)">RV 4800 · vence 10/11</text>
+        <path d="M660 281 C 740 281, 720 80, 778 80" stroke="var(--muted)" stroke-dasharray="4 3" stroke-width="1.2" fill="none" marker-end="url(#ar2)"/>
+      </svg>
+      </div>
+      <figcaption>Exemplo ilustrativo, não são dados reais. Um NSU parcelado em 3x recebe três <code>paymentId</code>, um por mês. Um <code>paymentId</code> paga o RV inteiro e pode juntar parcelas de outros RVs com o mesmo vencimento, como o RV 4800 na linha tracejada. Para ir de um ao outro, o caminho passa sempre pelo RV e pela data.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Glossário</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Termo</th><th>Campo na Rede</th><th>Campo no Sankhya</th><th>O que é</th></tr></thead>
+        <tbody>
+          <tr><td>PV</td><td class="mono">companyNumber, parentCompanyNumber</td><td class="mono">—</td><td>Número do estabelecimento na Rede. A rotina roda uma vez para cada PV de <code>COMPANY_NUMBER_LIST</code>.</td></tr>
+          <tr><td>NSU</td><td class="mono">nsu (filtro)</td><td class="mono">NSU</td><td>Identificador de uma transação de cartão, impresso no comprovante.</td></tr>
+          <tr><td>RV</td><td class="mono">saleSummaryNumber</td><td class="mono">SALESUMNUM</td><td>Resumo de Vendas: lote de vendas do dia, por bandeira e modalidade. É a chave do cruzamento.</td></tr>
+          <tr><td>Parcela</td><td class="mono">installmentNumber, expirationDate</td><td class="mono">EXPIRATIONDATE</td><td>Parte do RV que vence numa data. Enquanto não é paga, vem com status <code>SCHEDULLED</code>.</td></tr>
+          <tr><td>MDR</td><td class="mono">mdrFee, mdrAmount</td><td class="mono">MDRFEE, MDRAMOUNT</td><td>Taxa da adquirente sobre a venda, em percentual e em valor.</td></tr>
+          <tr><td>Ordem de crédito</td><td class="mono">paymentsCreditOrders[]</td><td class="mono">—</td><td>Repasse que a Rede liquida para a conta do lojista numa data.</td></tr>
+          <tr><td>paymentId</td><td class="mono">paymentId (20 dígitos)</td><td class="mono">PAYMENTID</td><td>Identificador do pagamento. Serve para conciliar com o extrato bancário e para consultar o detalhe em <code>/v1/payments/{companyNumber}/{paymentId}</code>.</td></tr>
+          <tr><td>creditOrderNumber</td><td class="mono">creditOrderNumber</td><td class="mono">—</td><td>Número da ordem de crédito. Vem no mesmo payload, mas é outro número e a rotina não o grava.</td></tr>
+          <tr><td>Data de pagamento</td><td class="mono">paymentDate</td><td class="mono">PAYMENTDATE</td><td>Dia em que a Rede pagou. Para o cruzamento funcionar, precisa ser igual ao vencimento da parcela.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+</body></html>

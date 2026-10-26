@@ -9,10 +9,28 @@ load_dotenv()
 class RotinaService():
 
     def __init__(self):
+        """
+            Instancia os serviços de pagamento do Sankhya e de vendas da Rede.
+        """
+
         self.snk_pgto = PagamentoService()
         self.rede_venda = VendasService()
 
     def registrarDadosPagamento(self,companyNumber:int,dataVendas:date,nsu:int) -> dict:
+        """
+            Consulta na API Rede as parcelas de uma venda e devolve os dados formatados.
+
+            Não grava no Sankhya: o payload é devolvido em 'dados' para quem chamou.
+
+            Parametros:
+                companyNumber: PV da empresa
+                dataVendas: data da venda
+                nsu: NSU da venda
+
+            Retorno:
+                {"sucesso": bool, "dados": list[dict], "mensagem": str}
+                dados: amount, brand, expirationDate, installmentNumber, mdrAmount, mdrFee, netAmount
+        """
 
         payload_pgto:dict = {}
         dados_rede:dict = {}
@@ -44,7 +62,13 @@ class RotinaService():
         return retorno
 
     def atualizarDadosPagamento(self,companyNumber:int,startDate:date,endDate:date) -> dict:
-
+        
+        """
+            Função para buscar pagamentos na conta da empresa(companyNumber) no periodo (startDate, endDate)
+            
+            Função que é rodada pelo scheduled diariamente para atualizar os pagamentos
+        """
+        
         dados_pagamento_raw:list[dict] = []
         dados_pagamento:list[dict] = []
         lista_salesumnum:list[int] = []

@@ -5,6 +5,11 @@ from src.rede.database.models import Token
 class TokenService:
 
     def __init__(self, db: Session):
+        """
+            Parametros:
+                db: sessão do SQLAlchemy
+        """
+
         self.db = db 
         
     def salvarToken(
@@ -13,6 +18,17 @@ class TokenService:
         accessToken: str,
         expiresAt: datetime | None = None,
     ):
+        """
+            Grava o token do sistema na tabela tokens.
+            Atualiza a linha se o sistema já existir, senão cria uma nova.
+
+            Parametros:
+                sistema: 'rede' | 'sankhya'
+                accessToken: token de acesso
+                expiresAt?: data/hora de expiração
+
+            Retorno: registro Token salvo
+        """
 
         token = (
             self.db.query(Token)
@@ -36,6 +52,15 @@ class TokenService:
         return token
     
     def obterToken(self, sistema: str) -> Token | None:
+        """
+            Busca o token salvo de um sistema.
+
+            Parametros:
+                sistema: 'rede' | 'sankhya'
+
+            Retorno: registro Token ou None se não existir
+        """
+
         return (
             self.db.query(Token)
             .filter(Token.sistema == sistema)
