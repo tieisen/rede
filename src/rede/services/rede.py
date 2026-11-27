@@ -12,6 +12,15 @@ load_dotenv()
 class AutenticacaoService:
 
     def __init__(self,ambiente: Literal['trn', 'prd']='prd',pacote: Literal['pgto', 'vendas']='vendas',auth:str=''):
+        """
+            Parametros:
+                ambiente: 'trn' (sandbox) | 'prd'
+                pacote: 'pgto' (link de pagamento) | 'vendas' (extrato)
+                auth: client_id:client_secret. BASIC_CLIENT_SP do .env tem prioridade
+
+            Gera Exception se PATH_TOKEN_REDE ou a credencial não estiverem configurados.
+        """
+
         self.sistema = 'rede'
         self.ambiente = ambiente
         self.pacote = pacote
@@ -24,6 +33,15 @@ class AutenticacaoService:
             raise Exception("Variáveis de ambiente não configuradas corretamente para REDE.")
 
     def converterBase64(self,texto:str) -> str:
+        """
+            Converte um texto para base64 (usado no header Basic da autenticação).
+
+            Parametros:
+                texto: str
+
+            Retorno: texto em base64 ou '' em caso de erro
+        """
+
         base64_bytes = b""
         base64_string = ""
         try:
@@ -38,6 +56,14 @@ class AutenticacaoService:
         return base64_string
 
     def validarAmbienteAuth(self) -> dict:
+        """
+            Monta o header Authorization e a URL de autenticação conforme pacote e ambiente.
+
+            Retorno:
+                {"authorization": "Basic ...", "url": URL_AUTH_*}
+                {} em caso de erro
+        """
+
         dados_ambiente:dict={}
         ambientes_validos = ['trn','prd']
         pacotes_validos = ['pgto','vendas']
@@ -76,6 +102,16 @@ class AutenticacaoService:
         return dados_ambiente
 
     def calcularExpiracao(self,dados:dict) -> bool:
+        """
+            Acrescenta ao retorno da autenticação os campos request_time e expire_time
+            (AAAA-MM-DD HH:MM:SS), calculados a partir de expires_in.
+
+            Parametros:
+                dados: retorno da autenticação (alterado no próprio dict)
+
+            Retorno: True se calculou, False em caso de erro
+        """
+
         try:
             assert isinstance(dados,dict)
             assert 'expires_in' in dados
@@ -92,6 +128,14 @@ class AutenticacaoService:
         return True
 
     def logar(self) -> dict:
+        """
+            Solicita um novo token na API Rede (OAuth2 client_credentials).
+
+            Retorno:
+                access_token, expires_in, ... + request_time e expire_time
+
+            Gera ConnectionError se a API retornar erro.
+        """
         
         self.dados_ambiente = self.validarAmbienteAuth()
         res:requests.Response=None
@@ -178,6 +222,13 @@ class AutenticacaoService:
         return token
     
     def validarToken(self) -> bool:
+        """
+            Carrega o token salvo no banco e verifica se ainda é válido.
+            Preenche self.token com o token encontrado.
+
+            Retorno: True se o token existe e não expirou
+        """
+
         status:bool = False
         self.token:str = ''
         agora:datetime = datetime.now().replace(microsecond=0)
@@ -202,6 +253,12 @@ class AutenticacaoService:
         return status
     
     def atualizarToken(self) -> bool:        
+        """
+            Gera um novo token na API Rede e salva no banco.
+
+            Retorno: True se salvou
+        """
+
         status:bool = False
         dados_token:dict = self.logar()
         if dados_token:
@@ -210,6 +267,12 @@ class AutenticacaoService:
         return status    
 
     def autenticar(self) -> str:
+        """
+            Retorna um token válido: usa o salvo no banco ou gera um novo se expirou.
+
+            Retorno: access_token
+        """
+
         if not self.validarToken():
             self.atualizarToken()
         return self.token
@@ -234,10 +297,23 @@ class AutenticacaoService:
 class LinkPagamentoService(AutenticacaoService):
 
     def __init__(self):
+        """
+            Inicializa o serviço com os padrões de AutenticacaoService (ambiente 'prd').
+        """
+
         super().__init__()
         self.token = None
 
     def validarAmbienteLink(self,ambiente: Literal['trn', 'prd']=None) -> str:
+        """
+            Retorna a URL base da API de link de pagamento para o ambiente.
+
+            Parametros:
+                ambiente?: 'trn' | 'prd'. Se não informado, usa self.ambiente
+
+            Retorno: URL_PT ou URL_PP do .env
+        """
+
         ambientes_validos = ['trn','prd']
         url:str=''
         if not ambiente:
@@ -264,6 +340,18 @@ class LinkPagamentoService(AutenticacaoService):
 
     @AutenticacaoService.accessToken
     def consultarDetalhesLink(self,paymentLinkId:str,companyNumber:str,ambiente: Literal['trn', 'prd']=None) -> dict:
+        """
+            Consulta os detalhes de um link de pagamento na API Rede.
+
+            Request:
+                paymentLinkId: str
+                companyNumber: str (enviado no header Company-number)
+                ambiente?: 'trn' | 'prd'
+
+            Response: JSON da API Rede
+
+            *Não é utilizado*
+        """
 
         data:dict={}
         url:str=''
@@ -296,6 +384,18 @@ class LinkPagamentoService(AutenticacaoService):
 
     @AutenticacaoService.accessToken
     def criarLink(self,companyNumber:str,body:dict,ambiente: Literal['trn', 'prd']=None) -> dict:
+        """
+            Cria um link de pagamento na API Rede.
+
+            Request:
+                companyNumber: str (enviado no header Company-number)
+                body: payload do link conforme a documentação da Rede
+                ambiente?: 'trn' | 'prd'
+
+            Response: JSON da API Rede
+
+            *Não é utilizado*
+        """
 
         data:dict={}
         url:str=''
@@ -330,10 +430,24 @@ class LinkPagamentoService(AutenticacaoService):
 class VendasService(AutenticacaoService):
 
     def __init__(self):
+        """
+            Inicializa o serviço com os padrões de AutenticacaoService (ambiente 'prd', pacote 'vendas').
+        """
+
         super().__init__()
         self.token = None        
 
     def validarAmbienteVendas(self,ambiente: Literal['trn', 'prd']=None) -> str:
+        """
+            Retorna a URL base da API de extrato (merchant-statement) para o ambiente.
+
+            Parametros:
+                ambiente?: 'trn' | 'prd'. Se não informado, usa self.ambiente
+
+            Retorno: URL_ST ou URL_SP do .env
+
+            Gera ValueError se o ambiente não for informado ou for inválido.
+        """
 
         ambientes_validos = ['trn','prd']
         url:str=''
@@ -356,6 +470,36 @@ class VendasService(AutenticacaoService):
 
     @AutenticacaoService.accessToken
     def consultarVendasParceladas(self,companyNumber:int,startDate:date,endDate:date,nsu:int=None,ambiente:Literal['trn', 'prd']=None) -> dict:
+
+        """
+            Consulta a API do Itaú para buscar vendas parceladas
+            
+            Parametros:
+                companyNumber: int
+                startDate: date que vira string
+                endDate: date que vira string
+                nsu?: int
+            
+            Response: 
+                content.installments[]:
+                    merchantId, centralMerchantId   str     PV do estabelecimento / central
+                    cardNumber                      str     mascarado: 999999******9999
+                    authorizationCode               str     código de autorização
+                    brand / brandCode               str/int VISA, MASTERCARD / 1, 2...
+                    saleAmount                      float   valor total da venda
+                    installmentNumber               int     nº desta parcela
+                    installmentQuantity             int     total de parcelas
+                    expirationDate                  str     AAAA-MM-DD (vencimento da parcela)
+                    status                          str     visto: "SCHEDULLED" (agendada)
+                    mdrFee / mdrAmount              float   taxa MDR (%) / valor da taxa
+                    feeTotal                        float   total de taxas
+                    flex / flexFee / flexAmount     bool/float  antecipação (Flex)
+                    amountInfo:
+                        amount, netAmount                       bruto / líquido da parcela
+                        discountAmount                          desconto (taxa)
+                        originalAmount, originalNetAmount,
+                        originalDiscountAmount, valueChange     valores originais e se houve ajuste
+        """
 
         data:dict={}
         url:str=''
@@ -395,7 +539,31 @@ class VendasService(AutenticacaoService):
     
     @AutenticacaoService.accessToken
     def consultarPagamentosOc(self,companyNumber:int,startDate:date,endDate:date,ambiente:Literal['trn', 'prd']=None) -> dict:
-
+        
+        """
+            Consulta pagamentos na API do Itaú por ordem de crédito
+            
+            Request:
+                companyNumber: int
+                startDate: date que vira string
+                endDate: date que vira string
+                nsu?: int
+            
+            Response: 
+                content.paymentsCreditOrders[]:
+                    companyNumber        str     PV
+                    saleSummaryNumber    int     RV  ← chave do cruzamento com o Sankhya
+                    paymentId            str     20 dígitos numéricos
+                    creditOrderNumber    int     nº da ordem de crédito (≠ paymentId)
+                    paymentDate          str     AAAA-MM-DD
+                    type / typeCode      str     visto: "CREDIT" / "CRE"
+                    brandCode            int
+                    amount               float   bruto
+                    discountAmount       float   descontos/taxas
+                    netAmount            float   líquido creditado
+                cursor.hasNextKey      bool    paginação
+        """
+        
         data:dict={}
         url:str=''
         header:dict={}
@@ -431,6 +599,33 @@ class VendasService(AutenticacaoService):
     @AutenticacaoService.accessToken
     def consultarPagamentosId(self,companyNumber:int,paymentId:str,ambiente:Literal['trn', 'prd']=None) -> dict:
 
+        """
+            Consulta pagamentos por ID na API Rede
+            
+            Request:
+                companyNumber: int
+                paymentId: int
+                        
+            Response: 
+                merchantId, centralMerchantId   str     PV do estabelecimento / central
+                cardNumber                      str     mascarado: 999999******9999
+                authorizationCode               str     código de autorização
+                brand / brandCode               str/int VISA, MASTERCARD / 1, 2...
+                saleAmount                      float   valor total da venda
+                installmentNumber               int     nº desta parcela
+                installmentQuantity             int     total de parcelas
+                expirationDate                  str     AAAA-MM-DD (vencimento da parcela)
+                status                          str     visto: "SCHEDULLED" (agendada)
+                mdrFee / mdrAmount              float   taxa MDR (%) / valor da taxa
+                feeTotal                        float   total de taxas
+                flex / flexFee / flexAmount     bool/float  antecipação (Flex)
+                amountInfo:
+                    amount, netAmount                       bruto / líquido da parcela
+                    discountAmount                          desconto (taxa)
+                    originalAmount, originalNetAmount,
+                    originalDiscountAmount, valueChange     valores originais e se houve ajuste
+        """
+
         data:dict={}
         url:str=''
         header:dict={}
@@ -464,6 +659,18 @@ class VendasService(AutenticacaoService):
         return data
     
     def formatarPayloadConsultaVendasParceladas(self,dadosVendas:dict=None) -> list[dict]:
+        """
+            Simplifica as parcelas retornadas por consultarVendasParceladas.
+
+            Parametros:
+                dadosVendas?: retorno da API. Se não informado, usa as parcelas da
+                              última consulta (self.dados_vendas_parceladas)
+
+            Retorno:
+                list[dict] com amount, brand, expirationDate (DD/MM/AAAA),
+                installmentNumber, mdrAmount, mdrFee, netAmount
+                [] em caso de erro
+        """
         
         vendas:list[dict] = dadosVendas.get("content",{}).get("installments",[]) if dadosVendas else self.dados_vendas_parceladas
         try:            

@@ -20,6 +20,11 @@ if not any([api_title,api_description,api_version]):
 sch = SchedulerService()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """
+        Ciclo de vida da aplicação: inicia o scheduler na subida da API
+        e encerra no desligamento.
+    """
+
     # Startup code
     sch.startScheduler()
     yield
@@ -43,6 +48,10 @@ app.include_router(router, tags=["API"])
 
 @app.get("/",include_in_schema=False)
 def read_root():
+    """
+        Rota raiz. Retorna o título e a versão da API.
+    """
+
     return {"message": f"{api_title}. Version {api_version}."}
 
 print(f"===>>API Boot@{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

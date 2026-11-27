@@ -12,14 +12,26 @@ logger = set_logger(__name__)
 class SchedulerService:
 
     def __init__(self):
+        """
+            Cria o serviço sem agendador. Ele é montado em inicializarTarefas.
+        """
+
         self.scheduler = None
 
     def startScheduler(self):
+        """
+            Registra os jobs e inicia o agendador em segundo plano.
+        """
+
         self.inicializarTarefas()
         self.scheduler.start()
         logger.info("APScheduler iniciado. O job 'atualizar_dados_pagamento' será executado diariamente à 01:00.")
 
     def stopScheduler(self):
+        """
+            Encerra o agendador sem esperar os jobs em execução.
+        """
+
         if self.scheduler:
             self.scheduler.shutdown(wait=False)
             logger.info("APScheduler encerrado.")

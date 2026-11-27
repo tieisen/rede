@@ -25,17 +25,33 @@ SessionLocal = sessionmaker(
 )
 
 def verificarCriarBanco():
+    """
+        Cria o arquivo SQLite (db.sqlite) caso ainda não exista.
+    """
+
     if not DB_PATH.exists():
         print("Criando banco SQLite de tokens...")
         DB_PATH.touch()
 
 
 def criarTabelas():
+    """
+        Cria as tabelas dos models registrados (tokens) caso ainda não existam.
+    """
+
     from . import models  # registra models
     Base.metadata.create_all(bind=engine)
 
 @contextmanager
 def get_session():
+    """
+        Context manager que abre uma sessão do SQLAlchemy e garante o fechamento ao final.
+
+        Uso:
+            with get_session() as session:
+                ...
+    """
+
     session = SessionLocal()
     try:
         yield session
