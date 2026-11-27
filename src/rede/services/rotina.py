@@ -63,6 +63,7 @@ class RotinaService():
             if not dados_pagamento_raw['content'].get('paymentsCreditOrders'):
                 return {"sucesso": True, "mensagem": f"Nenhum pagamento encontrado para o período especificado ({startDate.strftime('%d/%m/%Y')}-{endDate.strftime('%d/%m/%Y')})."}
             dados_pagamento = dados_pagamento_raw['content']['paymentsCreditOrders']
+            print(f"dados_pagamento: {dados_pagamento}")
 
             # Busca dados financeiros na API Sankhya com base nos salesSummaryNumber dos pagamentos encontrados
             lista_salesumnum = [d.get('saleSummaryNumber') for d in dados_pagamento]
@@ -73,7 +74,7 @@ class RotinaService():
 
             dados_financeiro = self.snk_pgto.buscar(lista_saleSummaryNumber=lista_salesumnum)                
             if not dados_financeiro:
-                raise Exception("Algumas transações financeiras não foram encontradas no Sankhya. NSUs: "+', '.join(map(str, lista_salesumnum)))
+                raise Exception("Algumas transações financeiras não foram encontradas no Sankhya. SalesSummaryNumber(s): "+', '.join(map(str, lista_salesumnum)))
 
             # Formata payload de atualização para a API Sankhya com base nos dados de pagamento e financeiro encontrados
             if not self.snk_pgto.formatarPayloadPagamento(dadosPagamento=dados_pagamento, dadosFinanceiro=dados_financeiro):
